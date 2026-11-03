@@ -1,0 +1,907 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Far Out</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#05040d;
+  --ink:#eef1ff; --dim:#a3abd1; --faint:#646c99;
+  --panel:rgba(9,9,26,.74); --line:rgba(160,170,255,.16); --line2:rgba(160,170,255,.32);
+  --accent:#7cf7d4; --accent-ink:#04140f; --warn:#ffcf5a; --bad:#ff6b8b;
+  --t0:#a3abd1; --t1:#7cf7d4; --t2:#6fb7ff; --t3:#c08bff; --t4:#ffcf5a;
+  --ease:cubic-bezier(.22,1,.36,1);
+  --pix:'Press Start 2P',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'Space Grotesk',system-ui,sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased}
+#bg{position:fixed;inset:0;width:100%;height:100%;display:block}
+#app{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center}
+
+/* ---------- HUD ---------- */
+.hud{width:100%;max-width:1100px;padding:16px 16px 0;display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center}
+.brand{font-family:var(--pix);font-size:12px;letter-spacing:1px;color:var(--ink);white-space:nowrap}
+.brand b{color:var(--accent);font-weight:400}
+.best{font-family:var(--pix);font-size:9px;color:var(--dim);text-align:right;line-height:1.7;white-space:nowrap}
+.best span{color:var(--warn)}
+.track{position:relative;height:44px;margin:0 22px}
+.track .rail{position:absolute;left:0;right:0;top:22px;height:4px;background:rgba(160,170,255,.14)}
+.track .fill{position:absolute;left:0;right:0;top:22px;height:4px;background:linear-gradient(90deg,var(--t1),var(--t2),var(--t3),var(--t4));transform-origin:left center;transform:scaleX(0);transition:transform 1.6s var(--ease)}
+.track .tick{position:absolute;top:18px;width:4px;height:12px;background:rgba(160,170,255,.35);transform:translateX(-2px)}
+.track .tick em{position:absolute;top:16px;left:50%;transform:translateX(-50%);font-style:normal;font-family:var(--pix);font-size:7px;color:var(--faint);white-space:nowrap}
+.track .ship{position:absolute;left:0;top:9px;width:42px;height:21px;margin-left:-21px;transition:transform 1.6s var(--ease);will-change:transform}
+.track .ship canvas{width:42px;height:21px;image-rendering:pixelated;display:block;filter:drop-shadow(0 0 6px rgba(124,247,212,.55))}
+.track .readout{position:absolute;right:0;top:-2px;font-family:var(--pix);font-size:9px;color:var(--dim)}
+.track .readout span{color:var(--ink)}
+
+/* ---------- Stage ---------- */
+.stage{flex:1;width:100%;display:grid;place-items:center;padding:24px 16px 40px}
+.screens{display:grid;width:100%;max-width:640px}
+.screen{grid-area:1/1;opacity:0;transform:translateY(18px) scale(.985);pointer-events:none;visibility:hidden;
+  transition:opacity .55s var(--ease),transform .7s var(--ease),visibility 0s linear .7s}
+.screen.on{opacity:1;transform:none;pointer-events:auto;visibility:visible;transition:opacity .55s var(--ease) .12s,transform .7s var(--ease) .12s,visibility 0s}
+.panel{position:relative;background:var(--panel);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  padding:32px 28px;border:2px solid var(--line);
+  box-shadow:0 0 0 2px rgba(5,4,13,.9),0 30px 80px rgba(0,0,0,.5)}
+.panel::before,.panel::after{content:"";position:absolute;width:10px;height:10px;border:2px solid var(--accent);opacity:.7}
+.panel::before{left:-4px;top:-4px;border-right:0;border-bottom:0}
+.panel::after{right:-4px;bottom:-4px;border-left:0;border-top:0}
+
+.kicker{font-family:var(--pix);font-size:9px;letter-spacing:1px;color:var(--accent);text-transform:uppercase}
+.logo{font-family:var(--pix);font-size:clamp(34px,8vw,58px);line-height:1.1;margin:18px 0 18px;
+  background:linear-gradient(180deg,#fff 0%,#cfd6ff 45%,#8e7cff 55%,#ff7ad9 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 4px 0 rgba(30,10,60,.9))}
+.lede{font-size:18px;line-height:1.5;color:var(--dim);max-width:46ch}
+.lede strong{color:var(--ink);font-weight:500}
+.rules{list-style:none;margin:24px 0 28px;display:grid;gap:12px}
+.rules li{display:grid;grid-template-columns:28px 1fr;gap:10px;font-size:15px;color:var(--dim);line-height:1.45}
+.rules li i{font-style:normal;font-family:var(--pix);font-size:10px;color:var(--accent);padding-top:3px}
+.tiers{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{font-family:var(--pix);font-size:8px;padding:6px 8px;border:2px solid currentColor;line-height:1;white-space:nowrap}
+
+.btn{appearance:none;border:0;cursor:pointer;font-family:var(--pix);font-size:12px;letter-spacing:.5px;color:var(--accent-ink);background:var(--accent);
+  padding:16px 20px;box-shadow:inset -4px -4px 0 rgba(0,0,0,.22),inset 4px 4px 0 rgba(255,255,255,.35),0 0 0 2px #04140f,0 0 28px rgba(124,247,212,.28);
+  transition:transform .25s var(--ease),box-shadow .25s var(--ease),filter .25s var(--ease)}
+.btn:hover{transform:translateY(-2px);box-shadow:inset -4px -4px 0 rgba(0,0,0,.22),inset 4px 4px 0 rgba(255,255,255,.35),0 0 0 2px #04140f,0 0 40px rgba(124,247,212,.45)}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid #fff;outline-offset:4px}
+.btn .k{opacity:.6;margin-left:10px;font:700 15px 'Space Grotesk',sans-serif;vertical-align:-1px}
+.row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.hint{font-size:13px;color:var(--faint)}
+
+/* ---------- Play ---------- */
+.qtop{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.qnum{font-family:var(--pix);font-size:9px;color:var(--dim)}
+.qnum span{color:var(--ink)}
+.clock{font-family:var(--pix);font-size:11px;color:var(--ink);font-variant-numeric:tabular-nums;transition:color .4s}
+.clock.low{color:var(--warn)}
+.timer{height:6px;background:rgba(160,170,255,.12);margin:14px 0 28px;overflow:hidden}
+.timer i{display:block;height:100%;background:var(--accent);transform-origin:left center;will-change:transform;transition:background-color .5s}
+.timer.low i{background:var(--warn)}
+.ask{font-size:16px;color:var(--dim)}
+.prompt{font-size:clamp(30px,6.4vw,46px);font-weight:700;line-height:1.08;letter-spacing:-.02em;margin:6px 0 26px;text-wrap:balance}
+.field{display:flex;gap:10px}
+.field input{flex:1;min-width:0;font:500 20px 'Space Grotesk',sans-serif;color:var(--ink);background:rgba(255,255,255,.04);border:2px solid var(--line2);padding:14px 16px;outline:none;
+  transition:border-color .3s var(--ease),box-shadow .3s var(--ease),background .3s}
+.field input::placeholder{color:var(--faint)}
+.field input:focus{border-color:var(--accent);background:rgba(124,247,212,.05);box-shadow:0 0 0 4px rgba(124,247,212,.12)}
+.field .btn{padding:0 18px}
+.under{margin-top:14px;display:flex;justify-content:space-between;gap:12px}
+
+/* ---------- Reveal ---------- */
+.rise{animation:rise .7s var(--ease) both;animation-delay:var(--d,0s)}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.tier{font-family:var(--pix);font-size:13px;letter-spacing:1px}
+.your{font-size:clamp(24px,5vw,34px);font-weight:700;letter-spacing:-.01em;margin:14px 0 4px;word-break:break-word}
+.matched{font-size:14px;color:var(--faint);min-height:20px}
+.ly{display:flex;align-items:baseline;gap:12px;margin:22px 0 6px}
+.ly b{font-family:var(--pix);font-weight:400;font-size:clamp(30px,7vw,44px);font-variant-numeric:tabular-nums}
+.ly small{font-family:var(--pix);font-size:10px;color:var(--dim)}
+.meter{position:relative;height:10px;margin:22px 0 8px;background:linear-gradient(90deg,var(--t0) 0 20%,var(--t1) 20% 45%,var(--t2) 45% 70%,var(--t3) 70% 90%,var(--t4) 90%);opacity:.9}
+.meter .pin{position:absolute;top:-7px;left:0;width:4px;height:24px;margin-left:-2px;background:#fff;box-shadow:0 0 0 2px var(--bg),0 0 14px #fff;transition:left 1.4s var(--ease)}
+.meter.none{filter:grayscale(1);opacity:.25}
+.mlabels{display:flex;justify-content:space-between;font-family:var(--pix);font-size:7px;color:var(--faint)}
+.lists{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:26px 0 28px}
+.lists h4{font-family:var(--pix);font-weight:400;font-size:8px;color:var(--dim);margin-bottom:10px}
+.lists ul{list-style:none;display:grid;gap:6px}
+.lists li{font-size:15px;display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed var(--line);padding-bottom:6px}
+.lists li span{font-family:var(--pix);font-size:8px;color:var(--faint);padding-top:4px;white-space:nowrap}
+
+/* ---------- End ---------- */
+.total{font-family:var(--pix);font-size:clamp(34px,8vw,54px);margin:18px 0 6px;font-variant-numeric:tabular-nums;color:var(--warn);text-shadow:0 4px 0 rgba(60,30,0,.7)}
+.dest{font-size:20px;color:var(--dim);line-height:1.45}
+.dest strong{color:var(--ink)}
+.recap{list-style:none;margin:24px 0 28px;display:grid;gap:2px}
+.recap li{display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line);font-size:15px}
+.recap .c{color:var(--faint);font-size:13px;display:block}
+.recap .t{font-family:var(--pix);font-size:7px}
+.recap .n{font-family:var(--pix);font-size:10px;min-width:70px;text-align:right}
+.newbest{display:inline-block;margin-top:12px;font-family:var(--pix);font-size:9px;color:var(--accent-ink);background:var(--warn);padding:6px 8px}
+
+@media (max-width:640px){
+  .hud{grid-template-columns:1fr auto;gap:10px}
+  .track{grid-column:1/-1;grid-row:2}
+  .track .tick em{display:none}
+  .panel{padding:24px 18px}
+  .lists{grid-template-columns:1fr}
+  .field{flex-direction:column}
+  .field .btn{padding:16px}
+}
+@media (prefers-reduced-motion:reduce){
+  .screen,.screen.on,.rise,.track .ship,.track .fill,.meter .pin{transition-duration:.01s!important;animation-duration:.01s!important}
+}
+</style>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+
+<div id="app">
+  <header class="hud">
+    <div class="brand">FAR<b>·</b>OUT</div>
+    <div class="track" id="track">
+      <div class="rail"></div>
+      <div class="fill" id="fill"></div>
+      <div id="ticks"></div>
+      <div class="ship" id="ship"><canvas id="shipcv" width="14" height="7"></canvas></div>
+    </div>
+    <div class="best">BEST<br><span id="best">0</span> LY</div>
+  </header>
+
+  <main class="stage">
+    <div class="screens">
+
+      <!-- Title -->
+      <section class="screen on" id="s-title">
+        <div class="panel">
+          <div class="kicker">A trivia voyage</div>
+          <h1 class="logo">FAR<br>OUT</h1>
+          <p class="lede">Name things. <strong>The more obscure your answer, the farther your ship flies.</strong> Anyone can say “apple”. Who says “salak”?</p>
+          <ul class="rules">
+            <li><i>01</i><span>10 prompts, 30 seconds each, one answer per prompt.</span></li>
+            <li><i>02</i><span>Common answers barely leave orbit. Deep cuts travel up to <strong style="color:var(--ink)">1,000 light years</strong>.</span></li>
+            <li><i>03</i><span>Answers not on the star charts don't move you at all.
+              <div class="tiers">
+                <span class="chip" style="color:var(--t0)">COMMON</span><span class="chip" style="color:var(--t1)">UNCOMMON</span><span class="chip" style="color:var(--t2)">RARE</span><span class="chip" style="color:var(--t3)">OBSCURE</span><span class="chip" style="color:var(--t4)">LEGENDARY</span>
+              </div></span></li>
+          </ul>
+          <div class="row">
+            <button class="btn" id="startBtn">LAUNCH <span class="k">↵</span></button>
+            <span class="hint">Press Enter to launch</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Play -->
+      <section class="screen" id="s-play">
+        <div class="panel">
+          <div class="qtop">
+            <div class="qnum">PROMPT <span id="qn">1</span>/10</div>
+            <div class="clock" id="clock">30.0</div>
+          </div>
+          <div class="timer" id="timer"><i id="timerbar"></i></div>
+          <div class="ask">Name a…</div>
+          <h2 class="prompt" id="prompt">fruit</h2>
+          <form class="field" id="form" autocomplete="off">
+            <input id="answer" type="text" placeholder="Your answer" maxlength="60" spellcheck="false" autocapitalize="off" aria-label="Your answer">
+            <button class="btn" type="submit">SEND <span class="k">↵</span></button>
+          </form>
+          <div class="under">
+            <span class="hint">Think like nobody else.</span>
+            <span class="hint" id="sofar"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Reveal -->
+      <section class="screen" id="s-reveal">
+        <div class="panel" id="revealBody"></div>
+      </section>
+
+      <!-- End -->
+      <section class="screen" id="s-end">
+        <div class="panel" id="endBody"></div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script>
+"use strict";
+/* =========================================================
+   QUESTION BANK
+   Each list is ordered from most common answer to most obscure.
+   Aliases are separated with "|". First alias is the display name.
+   ========================================================= */
+const BANK = [
+{c:"fruit", l:`apple,banana,orange,strawberry,grape,mango,pineapple,watermelon,cherry,pear,peach,blueberry,kiwi,lemon,raspberry,plum,coconut,lime,cantaloupe,apricot,pomegranate,grapefruit,papaya,fig,blackberry,cranberry,nectarine,honeydew,passion fruit|passionfruit,guava,lychee|litchi,dragon fruit|pitaya,persimmon,tangerine,clementine,date,star fruit|carambola,jackfruit,quince,kumquat,durian,rambutan,mangosteen,gooseberry,elderberry,loquat,soursop|guanabana,cherimoya,feijoa,salak|snake fruit,ackee,jabuticaba,medlar,miracle fruit,cloudberry`},
+{c:"country", l:`united states|usa|us|america|united states of america,canada,mexico,china,japan,france,germany,italy,brazil,united kingdom|uk|england|britain|great britain,russia,india,australia,spain,egypt,south africa,argentina,sweden,norway,ireland,greece,netherlands|holland,switzerland,portugal,south korea|korea,new zealand,turkey|turkiye,nigeria,kenya,peru,chile,poland,vietnam,thailand,colombia,cuba,iceland,finland,denmark,belgium,austria,morocco,indonesia,philippines,pakistan,iran,iraq,ukraine,israel,saudi arabia,jamaica,venezuela,ethiopia,ghana,nepal,mongolia,bhutan,laos,estonia,latvia,lithuania,moldova,belarus,georgia,armenia,azerbaijan,kazakhstan,uzbekistan,kyrgyzstan,tajikistan,turkmenistan,suriname,guyana,belize,brunei,eritrea,djibouti,burundi,rwanda,malawi,lesotho,eswatini|swaziland,gabon,chad,niger,mali,burkina faso,togo,benin,sierra leone,liberia,gambia,guinea-bissau,equatorial guinea,comoros,seychelles,mauritius,cabo verde|cape verde,sao tome and principe,timor-leste|east timor,andorra,liechtenstein,san marino,monaco,vatican city|vatican|holy see,vanuatu,tonga,samoa,micronesia,marshall islands,kiribati,palau,nauru,tuvalu`},
+{c:"animal", l:`dog,cat,lion,elephant,tiger,horse,giraffe,monkey,bear,cow,zebra,wolf,rabbit|bunny,fox,pig,deer,snake,shark,whale,dolphin,mouse,cheetah,kangaroo,gorilla,panda,penguin,koala,hippo|hippopotamus,rhino|rhinoceros,crocodile,alligator,leopard,camel,squirrel,sheep,goat,owl,frog,turtle,octopus,jaguar,hyena,moose,bison,otter,raccoon,sloth,meerkat,lemur,platypus,armadillo,chameleon,capybara,wombat,narwhal,echidna,tapir,axolotl,quokka,pangolin,okapi,serval,caracal,coati,kinkajou,binturong,tarsier,aye-aye,fossa,numbat,gerenuk,dik-dik,saiga,markhor,takin,babirusa,gharial,olm,solenodon,blobfish`},
+{c:"color", l:`red,blue,green,yellow,purple,orange,pink,black,white,brown,gray|grey,teal,turquoise,gold,silver,magenta,cyan,maroon,navy|navy blue,beige,lavender,indigo,violet,crimson,scarlet,olive,coral,ivory,burgundy,mauve,fuchsia,aquamarine,periwinkle,chartreuse,taupe,vermilion,cerulean,ochre,sienna,umber,puce,viridian,celadon,gamboge,glaucous,wenge,falu red,xanadu,zaffre,smaragdine`},
+{c:"sport", l:`soccer|football,basketball,baseball,tennis,golf,hockey|ice hockey,volleyball,swimming,cricket,rugby,boxing,badminton,table tennis|ping pong,skiing,snowboarding,surfing,wrestling,track|athletics|track and field,cycling,gymnastics,lacrosse,fencing,rowing,archery,curling,water polo,handball,polo,squash,bobsled|bobsleigh,luge,skeleton,biathlon,kabaddi,hurling,sepak takraw,bandy,korfball,jai alai|basque pelota|pelota,shinty,underwater hockey,buzkashi,bossaball,chess boxing|chessboxing,kin-ball|kinball`},
+{c:"musical instrument", l:`guitar,piano,drums|drum,violin,flute,trumpet,saxophone|sax,ukulele,harp,cello,clarinet,trombone,bass|bass guitar|double bass,harmonica,accordion,banjo,tuba,xylophone,oboe,tambourine,french horn|horn,viola,bagpipes,mandolin,bassoon,triangle,piccolo,keyboard,sitar,didgeridoo,glockenspiel,marimba,theremin,harpsichord,kalimba,celesta,bouzouki,ocarina,tabla,erhu,shamisen,koto,oud,balalaika,hurdy-gurdy|hurdy gurdy,duduk,contrabassoon,sackbut,crumhorn,serpent,nyckelharpa,ondes martenot,handpan|hang drum,mbira,veena|vina`},
+{c:"planet, dwarf planet or moon in our solar system", l:`earth,mars,jupiter,saturn,moon|the moon|luna,venus,mercury,neptune,uranus,pluto,titan,europa,io,ganymede,callisto,phobos,deimos,enceladus,triton,charon,ceres,eris,mimas,iapetus,rhea,dione,tethys,miranda,titania,oberon,ariel,umbriel,hyperion,phoebe,haumea,makemake,nereid,proteus,amalthea,himalia,janus,epimetheus,pan,daphnis,thebe,metis,adrastea,larissa,despina,galatea,naiad,thalassa,puck,cordelia,ophelia,sycorax,caliban,nix,hydra,kerberos,styx`},
+{c:"vegetable", l:`carrot,broccoli,potato,lettuce,tomato,onion,corn,cucumber,spinach,pea,celery,pepper|bell pepper,cabbage,cauliflower,green bean,garlic,zucchini|courgette,asparagus,mushroom,eggplant|aubergine,sweet potato,kale,radish,beet|beetroot,brussels sprout,squash,pumpkin,artichoke,leek,turnip,parsnip,okra,bok choy|pak choi,arugula|rocket,shallot,fennel,kohlrabi,rutabaga|swede,jicama,chard|swiss chard,endive,radicchio,celeriac,daikon,taro,cassava|yuca|manioc,salsify,sunchoke|jerusalem artichoke,burdock,romanesco,fiddlehead,cardoon,samphire,oca,mashua,ulluco`},
+{c:"dog breed", l:`labrador|lab|labrador retriever,golden retriever,german shepherd,poodle,bulldog,beagle,chihuahua,husky|siberian husky,pug,rottweiler,dachshund|wiener dog,boxer,corgi,yorkshire terrier|yorkie,shih tzu,dalmatian,great dane,doberman,pit bull|pitbull,border collie,pomeranian,maltese,cocker spaniel,australian shepherd,bernese mountain dog,saint bernard|st bernard,greyhound,mastiff,schnauzer,shiba inu,akita,bloodhound,basset hound,chow chow,newfoundland,samoyed,whippet,weimaraner,vizsla,papillon,basenji,shar pei,afghan hound,borzoi,bichon frise,cavalier king charles spaniel,rhodesian ridgeback,komondor,puli,xoloitzcuintli|xolo,otterhound,lagotto romagnolo,mudi,azawakh,kooikerhondje,stabyhoun,norwegian lundehund,peruvian inca orchid,bergamasco,sloughi,catalburun`},
+{c:"chemical element", l:`oxygen,hydrogen,carbon,gold,iron,nitrogen,helium,silver,copper,sodium,calcium,neon,lead,aluminum|aluminium,zinc,potassium,uranium,chlorine,magnesium,mercury,sulfur|sulphur,platinum,lithium,silicon,tin,phosphorus,nickel,titanium,iodine,fluorine,argon,plutonium,cobalt,chromium,tungsten,radon,krypton,xenon,boron,radium,manganese,arsenic,beryllium,bromine,barium,cesium|caesium,strontium,selenium,gallium,germanium,palladium,osmium,iridium,bismuth,cadmium,antimony,vanadium,zirconium,molybdenum,indium,tellurium,polonium,francium,thorium,americium,einsteinium,scandium,yttrium,lanthanum,cerium,neodymium,europium,gadolinium,terbium,dysprosium,holmium,erbium,thulium,ytterbium,lutetium,hafnium,tantalum,rhenium,rhodium,ruthenium,technetium,promethium,samarium,praseodymium,astatine,actinium,protactinium,neptunium,curium,berkelium,californium,fermium,mendelevium,nobelium,lawrencium,rutherfordium,dubnium,seaborgium,bohrium,hassium,meitnerium,darmstadtium,roentgenium,copernicium,nihonium,flerovium,moscovium,livermorium,tennessine,oganesson`},
+{c:"bird", l:`eagle,parrot,owl,penguin,crow,robin,flamingo,pigeon,hawk,duck,swan,seagull|gull,cardinal,blue jay,sparrow,ostrich,peacock|peafowl,hummingbird,chicken,turkey,toucan,falcon,vulture,pelican,woodpecker,stork,heron,crane,emu,kiwi,raven,magpie,finch,canary,albatross,puffin,kingfisher,cockatoo,macaw,condor,osprey,egret,ibis,roadrunner,starling,wren,kookaburra,dodo,lyrebird,cassowary,hornbill,secretary bird,quetzal,shoebill,hoatzin,potoo,frogmouth,kakapo,kea,takahe,bowerbird,motmot,oilbird,sunbittern`},
+{c:"board or card game", l:`chess,monopoly,checkers|draughts,scrabble,uno,poker,solitaire,risk,clue|cluedo,go fish,battleship,catan|settlers of catan,backgammon,snakes and ladders|chutes and ladders,candy land|candyland,connect four|connect 4,sorry,jenga,yahtzee,pictionary,trivial pursuit,guess who,go,mahjong|mahjongg,dominoes|domino,operation,mouse trap,blackjack,ticket to ride,pandemic,carcassonne,codenames,rummy,hearts,spades,bridge,euchre,cribbage,canasta,gin rummy,mancala,othello|reversi,stratego,parcheesi|ludo,shogi,xiangqi|chinese chess,diplomacy,azul,wingspan,agricola,terraforming mars,twilight struggle,crokinole,pinochle,skat,belote,sheepshead,nine men's morris|nine mens morris,pachisi,senet,hnefatafl`},
+{c:"gemstone", l:`diamond,ruby,emerald,sapphire,amethyst,pearl,opal,topaz,jade,quartz,garnet,turquoise,onyx,aquamarine,peridot,citrine,amber,jasper,obsidian,moonstone,lapis lazuli|lapis,tanzanite,tourmaline,malachite,agate,beryl,zircon,alexandrite,spinel,tiger's eye|tigers eye|tiger eye,bloodstone,carnelian,labradorite,rhodochrosite,chrysoberyl,kunzite,morganite,iolite,sodalite,sunstone,larimar,benitoite,taaffeite,painite,grandidierite,jeremejevite,musgravite,red beryl|bixbite,poudretteite,serendibite`},
+{c:"part of the human body", l:`hand,head,arm,leg,foot,eye,nose,ear,mouth,finger,toe,heart,brain,knee,elbow,shoulder,neck,hair,back,chest,stomach,lung,liver,kidney,skin,tongue,tooth|teeth,lip,chin,cheek,wrist,ankle,hip,thumb,eyebrow,forehead,spine,rib,skull,pancreas,spleen,appendix,gallbladder,esophagus|oesophagus,femur,tibia,fibula,clavicle|collarbone,sternum,patella|kneecap,scapula,uvula,cochlea,coccyx|tailbone,stapes,incus,malleus,philtrum,glabella,hyoid,lunula,tragus,columella,canthus,frenulum,pisiform,popliteal fossa`},
+{c:"cheese", l:`cheddar,mozzarella,parmesan|parmigiano reggiano,swiss,brie,gouda,feta,american,provolone,blue cheese|blue,camembert,ricotta,cream cheese,cottage cheese,pepper jack,monterey jack,colby,goat cheese|chevre,gruyere,mascarpone,halloumi,havarti,manchego,emmental|emmentaler,edam,roquefort,gorgonzola,stilton,pecorino,asiago,paneer,burrata,fontina,munster,limburger,raclette,comte,taleggio,jarlsberg,wensleydale,red leicester,double gloucester,queso fresco,cotija,oaxaca,boursin,reblochon,epoisses,vacherin,caciocavallo,mimolette,kashkaval,brunost|gjetost,ossau-iraty,banon,tete de moine,stinking bishop,leipajuusto,casu marzu,pule`},
+{c:"capital city", l:`london,paris,washington|washington dc|washington d c,tokyo,rome,berlin,madrid,beijing,moscow,ottawa,mexico city,canberra,cairo,athens,dublin,amsterdam,lisbon,seoul,new delhi|delhi,bangkok,buenos aires,brasilia,stockholm,oslo,vienna,brussels,copenhagen,helsinki,warsaw,prague,budapest,ankara,havana,lima,santiago,bogota,nairobi,jakarta,manila,hanoi,reykjavik,wellington,bern,kyiv|kiev,tehran,baghdad,riyadh,islamabad,kabul,caracas,quito,montevideo,kingston,nassau,abuja,accra,addis ababa,dakar,tallinn,riga,vilnius,ljubljana,bratislava,tirana,skopje,podgorica,sarajevo,chisinau,tbilisi,yerevan,baku,valletta,vaduz,andorra la vella,paramaribo,georgetown,belmopan,tegucigalpa,managua,asuncion,windhoek,gaborone,lilongwe,maseru,mbabane,antananarivo,port louis,bishkek,dushanbe,ashgabat,thimphu,ulaanbaatar|ulan bator,ouagadougou,bujumbura,gitega,malabo,moroni,honiara,port vila,apia,nuku'alofa|nukualofa,palikir,majuro,yaren,tarawa|south tarawa,funafuti,ngerulmud`},
+{c:"thing you'd find in space", l:`star,planet,moon,asteroid,comet,black hole,sun,galaxy,meteor,satellite,nebula,rocket,astronaut,space station|iss|international space station,meteorite,supernova,alien,ufo,space dust|cosmic dust|dust,dark matter,dark energy,quasar,pulsar,neutron star,white dwarf,red giant,brown dwarf,exoplanet,wormhole,cosmic ray,solar wind,solar flare,kuiper belt,oort cloud,magnetar,blazar,gamma ray burst,globular cluster,protostar,accretion disk,event horizon,lagrange point,heliopause,kilonova,cosmic microwave background|cmb,rogue planet,hypervelocity star,cosmic void,fast radio burst,quark star|strange star,boson star,bok globule,herbig-haro object,zodiacal light,gegenschein`},
+{c:"shape", l:`circle,square,triangle,rectangle,star,heart,oval,diamond,pentagon,hexagon,octagon,rhombus,trapezoid|trapezium,cube,sphere,pyramid,cylinder,cone,parallelogram,crescent,ellipse,heptagon,nonagon,decagon,kite,prism,cuboid,arrow,cross,spiral,semicircle,tetrahedron,octahedron,dodecahedron,icosahedron,torus,dodecagon,hendecagon|undecagon,trefoil,quatrefoil,annulus,lune,cardioid,deltoid,astroid,mobius strip,klein bottle,reuleaux triangle,superellipse,trapezohedron,rhombicuboctahedron,sphericon,oloid,gomboc`},
+{c:"dinosaur", l:`tyrannosaurus|t rex|trex|tyrannosaurus rex,triceratops,velociraptor|raptor,stegosaurus,brachiosaurus,pterodactyl|pteranodon,spinosaurus,ankylosaurus,diplodocus,brontosaurus,apatosaurus,allosaurus,parasaurolophus,pachycephalosaurus,iguanodon,dilophosaurus,carnotaurus,giganotosaurus,compsognathus,gallimimus,archaeopteryx,deinonychus,mosasaurus,plesiosaurus,therizinosaurus,baryonyx,argentinosaurus,oviraptor,troodon,utahraptor,maiasaura,edmontosaurus,styracosaurus,protoceratops,microraptor,suchomimus,ceratosaurus,megalosaurus,kentrosaurus,amargasaurus,nigersaurus,dreadnoughtus,mamenchisaurus,sinosauropteryx,yutyrannus,nothronychus,irritator,mapusaurus,kosmoceratops,dracorex,zuul,borealopelta,minmi,pegomastax,halszkaraptor,qianzhousaurus`},
+{c:"language", l:`english,spanish,french,german,chinese|mandarin,japanese,italian,russian,portuguese,arabic,korean,hindi,dutch,greek,latin,swedish,hebrew,polish,turkish,vietnamese,thai,cantonese,norwegian,danish,finnish,irish|irish gaelic|gaelic,welsh,swahili,tagalog|filipino,urdu,bengali|bangla,punjabi,persian|farsi,indonesian,malay,hungarian,czech,romanian,ukrainian,sign language|asl|american sign language,esperanto,sanskrit,tamil,telugu,icelandic,basque,catalan,yiddish,zulu,xhosa,maori,hawaiian,navajo,cherokee,quechua,amharic,tibetan,mongolian,georgian,armenian,albanian,estonian,latvian,lithuanian,maltese,yoruba,igbo,hausa,wolof,faroese,breton,cornish,manx,sami,inuktitut,guarani,aymara,nahuatl,ainu,toki pona,lojban,volapuk,rotokas,piraha,silbo gomero,ithkuil`},
+{c:"type of weather", l:`rain,snow,sunny|sun|sunshine,cloudy|clouds|cloud,wind|windy,storm,thunder,lightning,hail,fog,tornado,hurricane,sleet,drizzle,blizzard,mist,frost,humidity|humid,heat wave|heatwave,thunderstorm,monsoon,typhoon,cyclone,drought,rainbow,overcast,dust storm|sandstorm,freezing rain,black ice,ice storm,whiteout,squall,gale,waterspout,microburst,polar vortex,haboob,derecho,graupel,virga,sundog|sun dog,chinook,foehn|fohn,sirocco,mistral,bora,thundersnow,ball lightning,diamond dust,haar,rime,mammatus,noctilucent cloud,fire whirl|firenado,morning glory cloud,st elmo's fire|st elmos fire`},
+{c:"thing in a kitchen", l:`fridge|refrigerator,oven,stove,sink,microwave,knife,spoon,fork,plate,pan,toaster,blender,kettle,cup,bowl,pot,spatula,cutting board,dishwasher,cabinet|cupboard,whisk,ladle,colander,grater,peeler,rolling pin,tongs,can opener,measuring cup,oven mitt,apron,coffee maker,sponge,timer,mixer,wok,skillet,saucepan,sieve,funnel,mortar and pestle|mortar|pestle,dutch oven,trivet,mandoline,zester|microplane,ramekin,baster,ricer,mezzaluna,bench scraper,tagine,chinois,bain marie,salamander,tamis,cloche,spider strainer`},
+{c:"Greek god or goddess", l:`zeus,poseidon,hades,athena,apollo,aphrodite,hermes,ares,hera,artemis,dionysus,hephaestus,demeter,persephone,kronos|cronus,gaia,eros,nike,prometheus,atlas,hestia,pan,helios,selene,nyx,eos,hecate,nemesis,tyche,iris,morpheus,hypnos,thanatos,uranus|ouranos,rhea,oceanus,hyperion,themis,mnemosyne,chaos,erebus,aether,hemera,tartarus,eris,asclepius,hebe,aeolus,triton,proteus,nereus,boreas,zephyrus,notus,eurus,thalassa,ananke,chronos,phanes,momus,achlys,oizys,palaemon,harpocrates`},
+{c:"tree", l:`oak,pine,maple,palm,birch,willow,apple,cherry,redwood,cedar,spruce,fir,elm,ash,sequoia,cypress,magnolia,dogwood,aspen,poplar,beech,walnut,eucalyptus,baobab,sycamore,chestnut,hickory,juniper,olive,cottonwood,larch,hemlock,yew,alder,hawthorn,holly,mahogany,teak,banyan,acacia,mangrove,ginkgo,linden|lime,hornbeam,rowan|mountain ash,sassafras,tupelo,catalpa,buckeye,paulownia,jacaranda,monkey puzzle,ceiba|kapok,bristlecone pine,rainbow eucalyptus,dragon blood tree|dragon's blood tree|dragons blood tree,wollemi pine,quiver tree,osage orange,sausage tree,cannonball tree,sandbox tree,ombu`},
+{c:"mythical creature", l:`dragon,unicorn,mermaid,phoenix,vampire,werewolf,ghost,fairy,centaur,griffin|gryphon|griffon,pegasus,minotaur,cyclops,troll,goblin,elf,giant,bigfoot|sasquatch|yeti,kraken,hydra,gorgon|medusa,sphinx,basilisk,leprechaun,banshee,siren,chimera,zombie,ogre,gnome,nymph,satyr,harpy,cerberus,loch ness monster|nessie,chupacabra,golem,genie|djinn|jinn,kelpie,wendigo,kitsune,kappa,tengu,manticore,cockatrice,wyvern,selkie,thunderbird,roc,bunyip,qilin|kirin,baku,nue,amarok,ahuizotl,encantado,tikbalang,aswang,mokele-mbembe,camazotz,lamassu,jorogumo,nuckelavee,leshy,rusalka,alkonost,gamayun,simurgh,peryton,jackalope`},
+];
+
+/* =========================================================
+   ANSWER MATCHING
+   ========================================================= */
+function norm(s){
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/['’]/g,'').replace(/[^a-z0-9 ]+/g,' ')
+    .replace(/\b(the|a|an)\b/g,' ').replace(/\s+/g,' ').trim();
+}
+function singular(s){
+  if(s.length>4 && s.endsWith('ies')) return s.slice(0,-3)+'y';
+  if(s.length>4 && /(ches|shes|xes|sses)$/.test(s)) return s.slice(0,-2);
+  if(s.length>3 && s.endsWith('s') && !s.endsWith('ss') && !s.endsWith('us') && !s.endsWith('is')) return s.slice(0,-1);
+  return s;
+}
+function keyOf(s){ return singular(norm(s)).replace(/ /g,''); }
+function lev(a,b,max){
+  if(Math.abs(a.length-b.length)>max) return max+1;
+  let prev=new Array(b.length+1); for(let j=0;j<=b.length;j++) prev[j]=j;
+  for(let i=1;i<=a.length;i++){
+    const cur=[i]; let best=i;
+    for(let j=1;j<=b.length;j++){
+      cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+      if(cur[j]<best) best=cur[j];
+    }
+    if(best>max) return max+1;
+    prev=cur;
+  }
+  return prev[b.length];
+}
+const titleCase=s=>s.replace(/\b([a-z])/g,(m,c)=>c.toUpperCase()).replace(/\bAnd\b/g,'and').replace(/\bOf\b/g,'of');
+for(const q of BANK){
+  q.items = q.l.split(',').map((raw,i)=>{
+    const aliases=raw.split('|').map(a=>a.trim()).filter(Boolean);
+    return {name:titleCase(aliases[0]), keys:aliases.map(keyOf), i};
+  });
+  q.map=new Map();
+  for(const it of q.items) for(const k of it.keys) if(!q.map.has(k)) q.map.set(k,it);
+}
+function match(q, input){
+  const k=keyOf(input); if(!k) return null;
+  if(q.map.has(k)) return q.map.get(k);
+  if(k.length<4) return null;
+  let best=null, bd=9;
+  const tol=k.length>=9?2:1;
+  for(const [key,it] of q.map){
+    if(key.length<4) continue;
+    const d=lev(k,key,tol);
+    if(d<=tol && d<bd){bd=d;best=it;}
+  }
+  return best;
+}
+
+/* =========================================================
+   SCORING
+   ========================================================= */
+const TIERS=[
+  {name:'COMMON',   col:'var(--t0)', max:.20},
+  {name:'UNCOMMON', col:'var(--t1)', max:.45},
+  {name:'RARE',     col:'var(--t2)', max:.70},
+  {name:'OBSCURE',  col:'var(--t3)', max:.90},
+  {name:'LEGENDARY',col:'var(--t4)', max:1.01},
+];
+function score(q,it){
+  const p = it.i/(q.items.length-1);
+  const ly = Math.max(1, Math.round(1000*Math.pow(p,1.7)));
+  const tier = TIERS.find(t=>p<t.max);
+  return {p, ly, tier};
+}
+const STARS=[
+  [0,'Earth'],[4.24,'Proxima Centauri'],[8.6,'Sirius'],[11.9,'Tau Ceti'],[25,'Vega'],[36.7,'Arcturus'],
+  [65,'Aldebaran'],[310,'Canopus'],[433,'Polaris'],[548,'Betelgeuse'],[860,'Rigel'],[1344,'the Orion Nebula'],
+  [2600,'Deneb'],[6500,'the Crab Nebula'],[7500,'Eta Carinae'],[10000,'the edge of the Orion Arm']
+];
+const TRACK_MAX=10000;
+const trackPos=d=>Math.log10(1+d)/Math.log10(1+TRACK_MAX);
+
+/* =========================================================
+   UTILITIES
+   ========================================================= */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function makeNoise(seed){
+  const r=mulberry32(seed), p=new Uint16Array(512), v=new Float32Array(256), perm=new Uint8Array(256);
+  for(let i=0;i<256;i++){perm[i]=i;v[i]=r();}
+  for(let i=255;i>0;i--){const j=(r()*(i+1))|0;const t=perm[i];perm[i]=perm[j];perm[j]=t;}
+  for(let i=0;i<512;i++)p[i]=perm[i&255];
+  const h=(x,y,z)=>v[p[p[p[x&255]+(y&255)]+(z&255)]];
+  const f=t=>t*t*(3-2*t);
+  function n3(x,y,z){
+    const xi=Math.floor(x),yi=Math.floor(y),zi=Math.floor(z),xf=x-xi,yf=y-yi,zf=z-zi,u=f(xf),w=f(yf),s=f(zf);
+    const a=h(xi,yi,zi),b=h(xi+1,yi,zi),c=h(xi,yi+1,zi),d=h(xi+1,yi+1,zi),e=h(xi,yi,zi+1),g=h(xi+1,yi,zi+1),k=h(xi,yi+1,zi+1),l=h(xi+1,yi+1,zi+1);
+    const x1=a+(b-a)*u,x2=c+(d-c)*u,x3=e+(g-e)*u,x4=k+(l-k)*u,y1=x1+(x2-x1)*w,y2=x3+(x4-x3)*w;
+    return y1+(y2-y1)*s;
+  }
+  return function fbm(x,y,z,o=5){let s=0,a=.5,fr=1,t=0;for(let i=0;i<o;i++){s+=a*n3(x*fr,y*fr,z*fr);t+=a;a*=.5;fr*=2.03;}return s/t;};
+}
+const BAYER=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5].map(v=>(v+.5)/16);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const easeOut=t=>1-Math.pow(1-t,3);
+const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+/* =========================================================
+   PLANET TEXTURES  (equirectangular, sampled on a sphere so they tile)
+   alpha channel = emissive flag: 0 normal, 1 always glowing, 2 city light (night only)
+   ========================================================= */
+const TW=192, TH=96;
+function genTexture(type, seed){
+  const N=makeNoise(seed), N2=makeNoise(seed+101), R=mulberry32(seed*13+7);
+  const tex=new Uint8ClampedArray(TW*TH*4);
+  const cloud=type==='terran'?new Uint8Array(TW*TH):null;
+  const craters=[];
+  if(type==='rocky'||type==='desert'){
+    const n=type==='rocky'?38:22;
+    for(let i=0;i<n;i++){const z=R()*2-1,ph=R()*Math.PI*2,s=Math.sqrt(1-z*z);craters.push([s*Math.cos(ph),z,s*Math.sin(ph),.05+Math.pow(R(),2.2)*.32]);}
+  }
+  const set=(o,c,e=0)=>{tex[o]=c[0];tex[o+1]=c[1];tex[o+2]=c[2];tex[o+3]=e;};
+  for(let y=0;y<TH;y++){
+    const lat=Math.PI/2-(y+.5)/TH*Math.PI, cl=Math.cos(lat), py=Math.sin(lat);
+    for(let x=0;x<TW;x++){
+      const lon=(x+.5)/TW*Math.PI*2, px=cl*Math.cos(lon), pz=cl*Math.sin(lon), o=(y*TW+x)*4;
+      if(type==='terran'){
+        const h=N(px*1.7+9,py*1.7,pz*1.7,6), m=N2(px*2.2,py*2.2,pz*2.2,4);
+        const capEdge=1.12+(N2(px*5,py*5,pz*5,3)-.5)*.6;
+        let c, e=0;
+        if(Math.abs(lat)>capEdge) c=[236,242,255];
+        else if(h<.43) c=[18,40,104];
+        else if(h<.475) c=[26,70,140];
+        else if(h<.50) c=[46,120,170];
+        else if(h<.515) c=[214,198,132];
+        else if(h<.575){ c = (m>.56 && Math.abs(lat)<.7)?[196,152,88]:[78,152,66]; if(R()<.07) e=2; }
+        else if(h<.62){ c=[40,104,54]; if(R()<.03) e=2; }
+        else if(h<.665) c=[118,100,82];
+        else c=[238,238,244];
+        set(o,c,e);
+        const cv=N2(px*3+30,py*5.5,pz*3,5);
+        cloud[y*TW+x]=cv>.58?255:cv>.545?140:0;
+      } else if(type==='gas'){
+        const t=lat*5.2+(N(px*2,py*9,pz*2,4)-.5)*1.6;
+        const P=[[238,218,176],[214,162,104],[176,110,70],[242,232,206],[150,88,58],[222,188,132],[196,140,90]];
+        let c=P[((Math.floor(t*1.25)%P.length)+P.length)%P.length];
+        // great storm
+        let dl=lon-1.1; dl=Math.atan2(Math.sin(dl),Math.cos(dl));
+        const dx=dl*cl/.34, dy=(lat+.36)/.13, d=dx*dx+dy*dy;
+        if(d<1) c=d<.3?[196,86,58]:d<.65?[222,126,80]:[244,206,166];
+        set(o,c);
+      } else if(type==='lava'){
+        const h=N(px*2.4,py*2.4,pz*2.4,5), cr=Math.abs(N2(px*3+4,py*3,pz*3,4)-.5);
+        if(h<.39) set(o,[236,84,30],1);
+        else if(cr<.018) set(o,[255,214,96],1);
+        else if(cr<.034) set(o,[255,116,44],1);
+        else set(o,h<.47?[44,26,30]:h<.55?[68,42,40]:[96,64,54]);
+      } else if(type==='ice'){
+        const h=N(px*2.2,py*2.2,pz*2.2,5), cr=Math.abs(N2(px*4,py*4,pz*4,3)-.5);
+        set(o, cr<.016?[108,150,206]: h<.46?[170,208,238]: h<.54?[204,228,250]:[238,246,255]);
+      } else if(type==='alien'){
+        const w=N2(px*2,py*2,pz*2,3);
+        const h=N(px*1.6+w*2,py*3+w*1.5,pz*1.6,5);
+        const P=[[34,24,80],[86,38,134],[150,60,160],[58,164,168],[150,240,212]];
+        set(o,P[clamp(Math.floor((h-.3)*12.5),0,4)]);
+      } else { // rocky / desert
+        const h=N(px*3,py*3,pz*3,5);
+        let c = type==='rocky'
+          ? (h<.45?[112,108,106]:h<.53?[142,136,130]:[170,164,156])
+          : (h<.45?[168,92,56]:h<.53?[206,128,74]:[232,170,108]);
+        for(const k of craters){
+          const dot=px*k[0]+py*k[1]+pz*k[2]; if(dot<.8) continue;
+          const d=Math.acos(clamp(dot,-1,1))/k[3];
+          if(d<.78){ c=c.map(v=>v*.72); break; }
+          if(d<1){ c=c.map(v=>Math.min(255,v*1.18)); break; }
+        }
+        set(o,c);
+      }
+    }
+  }
+  return {tex,cloud};
+}
+
+/* =========================================================
+   PLANET  (pixel-art sphere rendered every frame into a small canvas)
+   ========================================================= */
+const LIGHT=(()=>{const v=[-.62,-.46,.64],l=Math.hypot(...v);return v.map(x=>x/l)})();
+const SHADE=[.14,.32,.55,.8,1];
+const SHADOW_TINT=[14,10,40];
+class Planet{
+  constructor(o){
+    Object.assign(this,{tilt:0,speed:.01,atmo:null,aw:.14,depth:.2,rot:Math.random()*TW,ring:null},o);
+    const S=this.size, Rr=S/2;
+    const ext=this.ring?this.ring.out*1.02:(this.atmo?1+this.aw+.06:1.04);
+    const C=this.C=Math.ceil(S*ext)+4;
+    this.cv=document.createElement('canvas'); this.cv.width=this.cv.height=C;
+    this.ctx=this.cv.getContext('2d');
+    this.img=this.ctx.createImageData(C,C);
+    this.base=new Uint8ClampedArray(C*C*4);
+    const t=genTexture(this.type,this.seed); this.tex=t.tex; this.cloud=t.cloud;
+    const ct=Math.cos(this.tilt), st=Math.sin(this.tilt), ctr=C/2;
+    let bands=null, rc=0, rs=0;
+    if(this.ring){
+      const r=mulberry32(this.seed+5); bands=[]; for(let i=0;i<30;i++) bands.push(r());
+      bands[19]=.04; bands[20]=.06; // a gap
+      rc=Math.cos(this.ring.tilt); rs=Math.sin(this.ring.tilt);
+    }
+    const idx=[],pu=[],pv=[],sh=[],rim=[];
+    const put=(i,c,a=255)=>{const o=i*4;this.base[o]=c[0];this.base[o+1]=c[1];this.base[o+2]=c[2];this.base[o+3]=a;};
+    for(let y=0;y<C;y++) for(let x=0;x<C;x++){
+      const dx=(x+.5-ctr)/Rr, dy=(y+.5-ctr)/Rr, d2=dx*dx+dy*dy, b=BAYER[(y&3)*4+(x&3)], i=y*C+x;
+      let front=false;
+      if(this.ring){
+        const g=this.ring, rx=dx*rc+dy*rs, ry=-dx*rs+dy*rc, rr=Math.hypot(rx,ry/g.flat);
+        if(rr>g.in && rr<g.out){
+          const s=(rr-g.in)/(g.out-g.in), bv=bands[Math.min(29,Math.floor(s*30))];
+          const visible = bv>.12 && !(bv<.32 && b>.55);
+          if(visible){
+            // planet shadow falls on the far ring (behind, toward lower-right)
+            const shadowed = ry<0 ? false : (Math.hypot(dx-LIGHT[0]*-0.55, dy-LIGHT[1]*-0.55)<1 && ry>0 && d2>1);
+            const lit=(ry>0?1:.72)*(shadowed?.45:1)*(1-Math.abs(s-.45)*.35);
+            const c=[lerp(g.a[0],g.b[0],bv)*lit, lerp(g.a[1],g.b[1],bv)*lit, lerp(g.a[2],g.b[2],bv)*lit];
+            if(ry>0){ put(i,c); front=true; }
+            else if(d2>1){ put(i,c); }
+          }
+        }
+      }
+      if(d2<=1){
+        if(front) continue;
+        const z=Math.sqrt(1-d2), qx=dx*ct+dy*st, qy=-dx*st+dy*ct;
+        const lat=Math.asin(clamp(-qy,-1,1)), lon=Math.atan2(qx,z);
+        idx.push(i);
+        pu.push(((lon/(Math.PI*2))+1)%1*TW);
+        pv.push(clamp(Math.floor((.5-lat/Math.PI)*TH),0,TH-1));
+        const dot=dx*LIGHT[0]+dy*LIGHT[1]+z*LIGHT[2];
+        const lv=clamp(dot*1.05+.16,0,1)*4.99+(b-.5)*.9;
+        sh.push(clamp(Math.floor(lv),0,4));
+        rim.push(this.atmo && d2>.78 && dot>-.05 ? (d2>.9?2:1) : 0);
+      } else if(this.atmo && !front){
+        const d=Math.sqrt(d2);
+        if(d<1+this.aw){
+          const side=(dx*LIGHT[0]+dy*LIGHT[1])/d*.5+.5;
+          const inten=(1-(d-1)/this.aw)*(.15+.85*side);
+          if(inten>b) put(i,this.atmo, inten>b+.35?255:150);
+        }
+      }
+    }
+    this.idx=Int32Array.from(idx); this.pu=Float32Array.from(pu); this.pv=Uint8Array.from(pv);
+    this.sh=Uint8Array.from(sh); this.rim=Uint8Array.from(rim);
+  }
+  update(dt){
+    this.rot=(this.rot+dt*this.speed*TW)%TW;
+    const d=this.img.data; d.set(this.base);
+    const {idx,pu,pv,sh,rim,tex,cloud}=this, off=this.rot, coff=this.rot*1.4+40, A=this.atmo;
+    for(let k=0;k<idx.length;k++){
+      const ty=pv[k];
+      const tx=((pu[k]+off)%TW)|0, ti=(ty*TW+tx)*4;
+      let r=tex[ti],g=tex[ti+1],b=tex[ti+2]; const e=tex[ti+3];
+      let ca=0;
+      if(cloud){ ca=cloud[ty*TW+(((pu[k]+coff)%TW)|0)]; }
+      const lvl=sh[k], m=SHADE[lvl];
+      if(ca){ const f=ca/255; r=lerp(r,248,f); g=lerp(g,250,f); b=lerp(b,255,f); }
+      if(e===1 && ca<200){
+        const mm=.75+m*.25; r*=mm; g*=mm; b*=mm;
+      } else if(e===2 && lvl<=1 && !ca){
+        r=255; g=208; b=120;
+      } else {
+        const im=1-m; r=r*m+SHADOW_TINT[0]*im; g=g*m+SHADOW_TINT[1]*im; b=b*m+SHADOW_TINT[2]*im;
+      }
+      if(rim[k]&&A){ const f=rim[k]===2?.45:.22; r=lerp(r,A[0],f); g=lerp(g,A[1],f); b=lerp(b,A[2],f); }
+      const o=idx[k]*4; d[o]=r; d[o+1]=g; d[o+2]=b; d[o+3]=255;
+    }
+    this.ctx.putImageData(this.img,0,0);
+  }
+}
+
+/* =========================================================
+   BACKGROUND SCENE
+   ========================================================= */
+const cv=document.getElementById('bg'), ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1,U=3;
+let stars=[], nebula=null, warpStars=[], shooting=[];
+const mouse={x:0,y:0,sx:0,sy:0};
+let warp=0, warpTarget=0, warpHold=0, drift=0, shootTimer=3;
+
+const planets=[
+  new Planet({key:'giant', type:'gas', seed:11, size:124, speed:.007, tilt:-.32, depth:.55,
+              ring:{in:1.28,out:2.2,flat:.28,tilt:-.32,a:[150,120,96],b:[236,214,176]}}),
+  new Planet({key:'terra', type:'terran', seed:4, size:72, speed:.014, tilt:.38, depth:.32, atmo:[120,190,255], aw:.16}),
+  new Planet({key:'moon', type:'rocky', seed:23, size:18, speed:.03, depth:.32}),
+  new Planet({key:'lava', type:'lava', seed:31, size:32, speed:.022, tilt:.2, depth:.2, atmo:[255,120,60], aw:.18}),
+  new Planet({key:'alien', type:'alien', seed:57, size:44, speed:.018, tilt:-.5, depth:.24, atmo:[236,120,255], aw:.15}),
+  new Planet({key:'ice', type:'ice', seed:77, size:24, speed:.02, depth:.14, atmo:[190,236,255], aw:.2}),
+  new Planet({key:'dune', type:'desert', seed:91, size:12, speed:.03, depth:.07}),
+];
+const P=Object.fromEntries(planets.map(p=>[p.key,p]));
+let layout={};
+function computeLayout(){
+  const narrow=W<760;
+  layout = narrow ? {
+    giant:[.92,.93], terra:[.12,.17], lava:[.9,.26], alien:[.74,.2], ice:[.1,.88], dune:[.45,.97]
+  } : {
+    giant:[.87,.8], terra:[.12,.3], lava:[.91,.17], alien:[.66,.15], ice:[.27,.9], dune:[.47,.95]
+  };
+}
+
+function buildStars(){
+  const R=mulberry32(1234), n=Math.round(W*H/2200);
+  const cols=['#ffffff','#cfe0ff','#ffe9c4','#ffd1e8','#c9fff1'];
+  stars=[];
+  for(let i=0;i<n;i++){
+    const big=R()<.05;
+    stars.push({x:R()*W,y:R()*H,s:big?2:R()<.3?1.5:1,c:cols[(R()*cols.length)|0],ph:R()*6.28,sp:.6+R()*2.2,a:.35+R()*.65,dp:.02+R()*.12,big});
+  }
+  warpStars=[];
+  for(let i=0;i<260;i++) warpStars.push(newWarp(R,true));
+}
+function newWarp(R=Math.random,init=false){return {x:(R()*2-1),y:(R()*2-1),z:init?R():1,pz:0};}
+
+function buildNebula(){
+  const s=U*2, w=Math.ceil(W/s)+2, h=Math.ceil(H/s)+2;
+  const c=document.createElement('canvas'); c.width=w; c.height=h;
+  const g=c.getContext('2d'), im=g.createImageData(w,h), N=makeNoise(808), N2=makeNoise(909);
+  const sc=3.2/Math.max(w,h);
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    const n=N(x*sc,y*sc,.5,5), m=N2(x*sc*1.6,y*sc*1.6,2,4);
+    const band=1-Math.abs((y/h)-(.25+.55*(x/w)))*2.2; // diagonal milky band
+    let v=(n-.42)*3.2+band*.5;
+    const b=BAYER[(y&3)*4+(x&3)];
+    const lvl=clamp(Math.floor(v*4+(b-.5)*1.1),0,4);
+    if(lvl<=0) continue;
+    const o=(y*w+x)*4;
+    const mix=clamp((m-.38)*3,0,1);
+    const A=[60,34,120],B=[140,46,120],C=[28,60,130];
+    const base=mix<.5?A.map((a,i)=>lerp(C[i],a,mix*2)):A.map((a,i)=>lerp(a,B[i],(mix-.5)*2));
+    im.data[o]=base[0]; im.data[o+1]=base[1]; im.data[o+2]=base[2]; im.data[o+3]=[0,38,62,88,112][lvl];
+  }
+  g.putImageData(im,0,0);
+  nebula={c,s};
+}
+
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  W=window.innerWidth; H=window.innerHeight;
+  cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0); ctx.imageSmoothingEnabled=false;
+  U=clamp(Math.round(Math.min(W,H)/280),2,5);
+  computeLayout(); buildStars(); buildNebula(); placeShip();
+}
+
+function planetScreen(p, t){
+  const [fx,fy]=layout[p.key];
+  const px=mouse.sx*p.depth*46, py=mouse.sy*p.depth*30;
+  const bob=Math.sin(t*.25+p.seed)*3*p.depth*U;
+  return [fx*W+px - drift*p.depth*0, fy*H+py+bob];
+}
+function drawPlanet(p,x,y){
+  const s=p.C*U;
+  ctx.drawImage(p.cv, x-s/2, y-s/2, s, s);
+}
+
+function frame(t, dt){
+  // smooth inputs
+  const k=1-Math.exp(-dt*3);
+  mouse.sx+= (mouse.x-mouse.sx)*k; mouse.sy+=(mouse.y-mouse.sy)*k;
+  if(warpHold>0) warpHold-=dt; else warpTarget=0;
+  const wk=1-Math.exp(-dt*(warpTarget>warp?4:1.6));
+  warp+=(warpTarget-warp)*wk;
+  drift+=dt*(6+warp*260);
+
+  ctx.fillStyle='#05040d'; ctx.fillRect(0,0,W,H);
+  // deep gradient glow
+  const gr=ctx.createRadialGradient(W*.7,H*.25,0,W*.7,H*.25,Math.max(W,H)*.8);
+  gr.addColorStop(0,'rgba(40,20,80,.35)'); gr.addColorStop(1,'rgba(5,4,13,0)');
+  ctx.fillStyle=gr; ctx.fillRect(0,0,W,H);
+
+  // nebula
+  if(nebula){
+    const ox=mouse.sx*-10 - (drift*.02)%(nebula.s), oy=mouse.sy*-8;
+    ctx.globalAlpha=.9;
+    ctx.drawImage(nebula.c, ox-nebula.s, oy-nebula.s, nebula.c.width*nebula.s, nebula.c.height*nebula.s);
+    ctx.globalAlpha=1;
+  }
+
+  // static stars with twinkle + slow parallax drift
+  for(const s of stars){
+    let x=(s.x - drift*s.dp*4 + mouse.sx*-s.dp*120)%W; if(x<0)x+=W;
+    const y=s.y + mouse.sy*-s.dp*80;
+    const tw=.55+.45*Math.sin(t*s.sp+s.ph);
+    ctx.globalAlpha=s.a*tw*(1-warp*.5);
+    ctx.fillStyle=s.c;
+    const z=s.s*(U>2?1.5:1);
+    ctx.fillRect(x,y,z,z);
+    if(s.big && tw>.8){
+      ctx.globalAlpha=(tw-.8)*3*s.a;
+      ctx.fillRect(x-z*2,y,z,z); ctx.fillRect(x+z*2,y,z,z); ctx.fillRect(x,y-z*2,z,z); ctx.fillRect(x,y+z*2,z,z);
+    }
+  }
+  ctx.globalAlpha=1;
+
+  // shooting stars
+  shootTimer-=dt;
+  if(shootTimer<=0 && !REDUCED){ shootTimer=4+Math.random()*7;
+    shooting.push({x:Math.random()*W*.8+W*.1,y:Math.random()*H*.4,vx:(Math.random()<.5?-1:1)*(380+Math.random()*260),vy:160+Math.random()*120,life:0,max:.9+Math.random()*.5}); }
+  for(let i=shooting.length-1;i>=0;i--){
+    const s=shooting[i]; s.life+=dt; if(s.life>s.max){shooting.splice(i,1);continue;}
+    s.x+=s.vx*dt; s.y+=s.vy*dt;
+    const f=Math.sin(Math.PI*s.life/s.max), z=U*.75;
+    for(let j=0;j<14;j++){
+      ctx.globalAlpha=f*(1-j/14)*.9; ctx.fillStyle=j<2?'#fff':'#bfe9ff';
+      ctx.fillRect(s.x-s.vx*j*.008, s.y-s.vy*j*.008, z, z);
+    }
+  }
+  ctx.globalAlpha=1;
+
+  // planets (back to front)
+  for(const p of planets) if(p.key!=='moon') p.update(dt);
+  P.moon.update(dt);
+  const order=['dune','ice','lava','alien','terra','giant'];
+  const ang=t*.16;
+  for(const key of order){
+    const p=P[key];
+    const [x,y]=planetScreen(p,t);
+    if(key==='terra'){
+      const a=P.terra.size*U*.95, b=a*.32, mx=x+Math.cos(ang)*a, my=y+Math.sin(ang)*b-Math.cos(ang)*a*.18;
+      const behind=Math.sin(ang)<0;
+      if(behind) drawPlanet(P.moon,mx,my);
+      drawPlanet(p,x,y);
+      if(!behind) drawPlanet(P.moon,mx,my);
+    } else drawPlanet(p,x,y);
+  }
+
+  // warp streaks
+  if(warp>.02){
+    const cx=W/2+mouse.sx*-20, cy=H/2+mouse.sy*-20, F=Math.max(W,H)*.5;
+    const sp=dt*(.25+warp*2.6);
+    ctx.lineWidth=Math.max(1,U*.6); ctx.lineCap='square';
+    for(const s of warpStars){
+      const pz=s.z; s.z-=sp;
+      if(s.z<=.02){ Object.assign(s,newWarp()); continue; }
+      const x1=cx+s.x/pz*F*.5, y1=cy+s.y/pz*F*.5, x2=cx+s.x/s.z*F*.5, y2=cy+s.y/s.z*F*.5;
+      const a=clamp((1-s.z)*1.4,0,1)*Math.min(1,warp*1.4);
+      ctx.strokeStyle=`rgba(${200+((s.x*50)|0)},${220},255,${a})`;
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    }
+    // flash vignette
+    const vg=ctx.createRadialGradient(cx,cy,0,cx,cy,Math.max(W,H)*.6);
+    vg.addColorStop(0,`rgba(140,200,255,${warp*.08})`); vg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+  }
+}
+function engageWarp(amount, hold){
+  warpTarget=REDUCED?Math.min(.25,amount):amount; warpHold=hold;
+}
+
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now;
+  frame(now/1000, dt);
+  tickTimer(now);
+  requestAnimationFrame(loop);
+}
+addEventListener('pointermove',e=>{mouse.x=(e.clientX/W-.5)*2; mouse.y=(e.clientY/H-.5)*2;},{passive:true});
+addEventListener('resize',resize);
+
+/* =========================================================
+   HUD SHIP + TRACK
+   ========================================================= */
+const SHIP=[
+  "....hh........",
+  "...hdd........",
+  "ffhhhhhhhhh...",
+  "ffdrrrrhhccchh",
+  "ffhhhhhhhhh...",
+  "...hdd........",
+  "....hh........",
+];
+const shipCtx=document.getElementById('shipcv').getContext('2d');
+const SHIPCOL={h:'#e8ecff',d:'#8a93c9',r:'#ff5d7a',c:'#7cf7d4'};
+function drawShip(){
+  shipCtx.clearRect(0,0,14,7);
+  for(let y=0;y<7;y++) for(let x=0;x<14;x++){
+    const ch=SHIP[y][x];
+    if(ch==='.') continue;
+    if(ch==='f'){
+      const r=Math.random(); if(x===0 && r<.35) continue;
+      shipCtx.fillStyle=r<.5?'#ffcf5a':'#ff7a3a';
+    } else shipCtx.fillStyle=SHIPCOL[ch];
+    shipCtx.fillRect(x,y,1,1);
+  }
+}
+drawShip(); setInterval(drawShip,90);
+
+const trackEl=document.getElementById('track'), shipEl=document.getElementById('ship'), fillEl=document.getElementById('fill');
+const ticksEl=document.getElementById('ticks');
+let shipDist=0;
+function buildTicks(){
+  ticksEl.innerHTML='';
+  for(const [d,name] of STARS){
+    if(d===0) continue;
+    if(!['Proxima Centauri','Vega','Polaris','Deneb','the Crab Nebula'].includes(name)) continue;
+    const el=document.createElement('div'); el.className='tick';
+    el.style.left=(trackPos(d)*100)+'%';
+    el.innerHTML=`<em>${name.replace('the ','').toUpperCase()}</em>`;
+    ticksEl.appendChild(el);
+  }
+}
+function placeShip(){
+  const w=trackEl.clientWidth, p=trackPos(shipDist);
+  shipEl.style.transform=`translateX(${p*w}px)`;
+  fillEl.style.transform=`scaleX(${p})`;
+}
+
+/* =========================================================
+   GAME
+   ========================================================= */
+const $=id=>document.getElementById(id);
+const ROUNDS=10, DURATION=30000;
+const G={phase:'title', round:0, qs:[], results:[], total:0, tStart:0, lock:0};
+$('best').textContent=store.get('farout.best',0).toLocaleString();
+
+function show(id){
+  for(const s of document.querySelectorAll('.screen')) s.classList.toggle('on', s.id===id);
+  $('app').scrollTo({top:0,behavior:'smooth'});
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function start(){
+  G.qs=shuffle(BANK.slice()).slice(0,ROUNDS);
+  G.round=0; G.results=[]; G.total=0;
+  shipDist=0; placeShip();
+  engageWarp(.6,.6);
+  ask();
+}
+function ask(){
+  const q=G.qs[G.round];
+  $('qn').textContent=G.round+1;
+  $('prompt').textContent=q.c;
+  $('sofar').textContent=G.total?`${G.total.toLocaleString()} ly travelled`:'';
+  $('answer').value='';
+  G.phase='play'; G.tStart=performance.now(); G.lock=performance.now()+400;
+  show('s-play');
+  setTimeout(()=>$('answer').focus({preventScroll:true}),350);
+}
+function tickTimer(now){
+  if(G.phase!=='play') return;
+  const left=Math.max(0,DURATION-(now-G.tStart));
+  $('timerbar').style.transform=`scaleX(${left/DURATION})`;
+  const low=left<8000;
+  $('timer').classList.toggle('low',low); $('clock').classList.toggle('low',low);
+  $('clock').textContent=(left/1000).toFixed(1);
+  if(left<=0) submit(true);
+}
+function submit(timeout=false){
+  if(G.phase!=='play') return;
+  G.phase='reveal'; G.lock=performance.now()+500;
+  const q=G.qs[G.round], raw=$('answer').value.trim();
+  const it=raw?match(q,raw):null;
+  let res;
+  if(it){ const s=score(q,it); res={q,raw,it,...s}; }
+  else res={q,raw,it:null,ly:0,p:0,tier:null,timeout:timeout&&!raw};
+  G.results.push(res); G.total+=res.ly;
+  $('answer').blur();
+  if(res.ly>0) engageWarp(.35+.65*Math.min(1,res.ly/700), 1.1+res.p*1.2);
+  shipDist=G.total; placeShip();
+  renderReveal(res);
+  show('s-reveal');
+}
+function countUp(el, to, dur=1400, delay=200){
+  const t0=performance.now()+delay;
+  function step(now){
+    const t=clamp((now-t0)/dur,0,1);
+    el.textContent=Math.round(to*easeOut(t)).toLocaleString();
+    if(t<1) requestAnimationFrame(step);
+  }
+  el.textContent='0'; requestAnimationFrame(step);
+}
+const esc=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function renderReveal(r){
+  const q=r.q, items=q.items, last=G.round===ROUNDS-1;
+  const common=items.slice(0,4).filter(x=>x!==r.it).slice(0,3);
+  const deep=items.slice(-5).filter(x=>x!==r.it).slice(-3).reverse();
+  const lyOf=it=>score(q,it).ly;
+  const tierHTML = r.tier
+    ? `<div class="tier rise" style="color:${r.tier.col}">${r.tier.name}</div>`
+    : `<div class="tier rise" style="color:var(--bad)">${r.timeout?'OUT OF TIME':'NO SIGNAL'}</div>`;
+  const yours = r.raw ? `“${esc(r.raw)}”` : '<span style="color:var(--faint)">No answer</span>';
+  const matched = r.it
+    ? (keyOf(r.raw)!==r.it.keys[0] ? `Logged as <b style="color:var(--dim)">${esc(r.it.name)}</b>` : `A ${esc(q.c)}, confirmed.`)
+    : (r.raw ? `That isn’t on our star charts for “${esc(q.c)}”.` : `The engines never fired.`);
+  $('revealBody').innerHTML=`
+    <div class="qtop"><div class="qnum">PROMPT <span>${G.round+1}</span>/${ROUNDS} · ${esc(q.c.toUpperCase())}</div></div>
+    <div style="height:18px"></div>
+    ${tierHTML}
+    <div class="your rise" style="--d:.06s">${yours}</div>
+    <div class="matched rise" style="--d:.1s">${matched}</div>
+    <div class="ly rise" style="--d:.14s"><b id="lyNum" style="color:${r.tier?r.tier.col:'var(--faint)'}">0</b><small>LIGHT YEARS</small></div>
+    <div class="rise" style="--d:.2s">
+      <div class="meter ${r.it?'':'none'}"><div class="pin" id="pin"></div></div>
+      <div class="mlabels"><span>EVERYONE SAYS IT</span><span>NOBODY SAYS IT</span></div>
+    </div>
+    <div class="lists rise" style="--d:.28s">
+      <div><h4>MOST SAID</h4><ul>${common.map(x=>`<li>${esc(x.name)}<span>${lyOf(x)} LY</span></li>`).join('')}</ul></div>
+      <div><h4>DEEPEST CUTS</h4><ul>${deep.map(x=>`<li>${esc(x.name)}<span>${lyOf(x)} LY</span></li>`).join('')}</ul></div>
+    </div>
+    <div class="row rise" style="--d:.34s">
+      <button class="btn" id="nextBtn">${last?'SEE WHERE YOU LANDED':'NEXT PROMPT'} <span class="k">↵</span></button>
+      <span class="hint">Total: ${G.total.toLocaleString()} ly</span>
+    </div>`;
+  countUp($('lyNum'), r.ly, 1200+r.p*600, 250);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ const pin=$('pin'); if(pin) pin.style.left=(r.it? r.p*100:0)+'%'; }));
+  $('nextBtn').onclick=next;
+}
+function next(){
+  if(G.phase!=='reveal'||performance.now()<G.lock) return;
+  G.round++;
+  if(G.round>=ROUNDS) finish(); else ask();
+}
+function finish(){
+  G.phase='end'; G.lock=performance.now()+600;
+  const best=store.get('farout.best',0), isBest=G.total>best;
+  if(isBest){ store.set('farout.best',G.total); $('best').textContent=G.total.toLocaleString(); }
+  let reached=STARS[0], nxt=null;
+  for(const s of STARS){ if(s[0]<=G.total) reached=s; else { nxt=s; break; } }
+  const dest = reached[0]===0
+    ? `Your ship never left <strong>Earth</strong>.`
+    : `You flew past <strong>${reached[1]}</strong> (${reached[0].toLocaleString()} ly).`;
+  const nextLine = nxt ? ` Next stop: <strong>${nxt[1]}</strong> at ${nxt[0].toLocaleString()} ly.` : ` There's nothing left on the map.`;
+  $('endBody').innerHTML=`
+    <div class="kicker">Voyage complete</div>
+    <div class="total"><span id="totNum">0</span> LY</div>
+    <p class="dest">${dest}${nextLine}</p>
+    ${isBest?'<div class="newbest rise" style="--d:.9s">NEW BEST</div>':''}
+    <div class="row" style="margin-top:22px">
+      <button class="btn" id="againBtn">FLY AGAIN <span class="k">↵</span></button>
+      <span class="hint">New prompts every voyage.</span>
+    </div>
+    <ul class="recap" style="margin-bottom:0">${G.results.map((r,i)=>`
+      <li class="rise" style="--d:${.15+i*.06}s">
+        <div><span class="c">${esc(r.q.c)}</span>${r.raw?esc(r.it?r.it.name:r.raw):'<span style="color:var(--faint)">No answer</span>'}</div>
+        <span class="t" style="color:${r.tier?r.tier.col:'var(--bad)'}">${r.tier?r.tier.name:'NO SIGNAL'}</span>
+        <span class="n" style="color:${r.tier?r.tier.col:'var(--faint)'}">${r.ly.toLocaleString()}</span>
+      </li>`).join('')}</ul>
+    `;
+  countUp($('totNum'), G.total, 2000, 300);
+  engageWarp(.9, 1.6);
+  $('againBtn').onclick=()=>{ if(performance.now()>=G.lock) start(); };
+  show('s-end');
+}
+
+$('startBtn').onclick=start;
+$('form').addEventListener('submit',e=>{e.preventDefault(); if($('answer').value.trim()) submit();});
+addEventListener('keydown',e=>{
+  if(e.key!=='Enter' || e.repeat) return;
+  if(G.phase==='title'){ e.preventDefault(); start(); }
+  else if(G.phase==='reveal' && e.target.id!=='answer'){ e.preventDefault(); next(); }
+  else if(G.phase==='end' && performance.now()>=G.lock){ e.preventDefault(); start(); }
+});
+
+resize(); buildTicks(); placeShip();
+requestAnimationFrame(t=>{last=t; requestAnimationFrame(loop);});
+</script>
+</body>
+</html>
