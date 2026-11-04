@@ -9,240 +9,220 @@
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#05040d;
-  --ink:#eef1ff; --dim:#a3abd1; --faint:#646c99;
-  --panel:rgba(9,9,26,.74); --line:rgba(160,170,255,.16); --line2:rgba(160,170,255,.32);
-  --accent:#7cf7d4; --accent-ink:#04140f; --warn:#ffcf5a; --bad:#ff6b8b;
-  --t0:#a3abd1; --t1:#7cf7d4; --t2:#6fb7ff; --t3:#c08bff; --t4:#ffcf5a;
+  --bg:#05040d; --ink:#eef1ff; --dim:#a3abd1; --faint:#69719e;
+  --panel:rgba(9,9,26,.82); --line:rgba(160,170,255,.16); --line2:rgba(160,170,255,.32);
+  --accent:#7cf7d4; --accent-ink:#04140f; --bad:#ff6b8b;
   --ease:cubic-bezier(.22,1,.36,1);
   --pix:'Press Start 2P',monospace;
+  --pw:400px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'Space Grotesk',system-ui,sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased}
-#bg{position:fixed;inset:0;width:100%;height:100%;display:block}
-#app{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center}
+#scene{position:fixed;inset:0;width:100%;height:100%;display:block}
+#fade{position:fixed;inset:0;background:#05040d;opacity:0;pointer-events:none;transition:opacity .45s var(--ease);z-index:5}
+#fade.on{opacity:1}
 
-/* ---------- HUD ---------- */
-.hud{width:100%;max-width:1100px;padding:16px 16px 0;display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center}
-.brand{font-family:var(--pix);font-size:12px;letter-spacing:1px;color:var(--ink);white-space:nowrap}
-.brand b{color:var(--accent);font-weight:400}
-.best{font-family:var(--pix);font-size:9px;color:var(--dim);text-align:right;line-height:1.7;white-space:nowrap}
-.best span{color:var(--warn)}
-.track{position:relative;height:44px;margin:0 22px}
-.track .rail{position:absolute;left:0;right:0;top:22px;height:4px;background:rgba(160,170,255,.14)}
-.track .fill{position:absolute;left:0;right:0;top:22px;height:4px;background:linear-gradient(90deg,var(--t1),var(--t2),var(--t3),var(--t4));transform-origin:left center;transform:scaleX(0);transition:transform 1.6s var(--ease)}
-.track .tick{position:absolute;top:18px;width:4px;height:12px;background:rgba(160,170,255,.35);transform:translateX(-2px)}
-.track .tick em{position:absolute;top:16px;left:50%;transform:translateX(-50%);font-style:normal;font-family:var(--pix);font-size:7px;color:var(--faint);white-space:nowrap}
-.track .ship{position:absolute;left:0;top:9px;width:42px;height:21px;margin-left:-21px;transition:transform 1.6s var(--ease);will-change:transform}
-.track .ship canvas{width:42px;height:21px;image-rendering:pixelated;display:block;filter:drop-shadow(0 0 6px rgba(124,247,212,.55))}
-.track .readout{position:absolute;right:0;top:-2px;font-family:var(--pix);font-size:9px;color:var(--dim)}
-.track .readout span{color:var(--ink)}
+/* ---------- altitude HUD (over the scene) ---------- */
+.hud{position:fixed;left:56px;top:18px;z-index:2;pointer-events:none;text-shadow:0 2px 0 rgba(0,0,0,.55)}
+.hud .brand{font-family:var(--pix);font-size:11px;letter-spacing:1px;margin-bottom:14px}
+.hud .brand b{color:var(--accent);font-weight:400}
+.hud .alt{font-family:var(--pix);font-size:clamp(16px,2.4vw,24px);font-variant-numeric:tabular-nums;white-space:nowrap}
+.hud .zone{font-family:var(--pix);font-size:9px;color:var(--accent);margin-top:10px;letter-spacing:.5px;transition:color .4s}
+.hud .pts{font-family:var(--pix);font-size:9px;color:var(--dim);margin-top:8px}
 
-/* ---------- Stage ---------- */
-.stage{flex:1;width:100%;display:grid;place-items:center;padding:24px 16px 40px}
-.screens{display:grid;width:100%;max-width:640px}
-.screen{grid-area:1/1;opacity:0;transform:translateY(18px) scale(.985);pointer-events:none;visibility:hidden;
-  transition:opacity .55s var(--ease),transform .7s var(--ease),visibility 0s linear .7s}
-.screen.on{opacity:1;transform:none;pointer-events:auto;visibility:visible;transition:opacity .55s var(--ease) .12s,transform .7s var(--ease) .12s,visibility 0s}
-.panel{position:relative;background:var(--panel);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-  padding:32px 28px;border:2px solid var(--line);
-  box-shadow:0 0 0 2px rgba(5,4,13,.9),0 30px 80px rgba(0,0,0,.5)}
-.panel::before,.panel::after{content:"";position:absolute;width:10px;height:10px;border:2px solid var(--accent);opacity:.7}
-.panel::before{left:-4px;top:-4px;border-right:0;border-bottom:0}
-.panel::after{right:-4px;bottom:-4px;border-left:0;border-top:0}
+/* ---------- panel ---------- */
+#panel{position:fixed;z-index:3;right:16px;top:16px;bottom:16px;width:var(--pw);
+  background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:2px solid var(--line);box-shadow:0 0 0 2px rgba(5,4,13,.9),0 30px 80px rgba(0,0,0,.45);
+  overflow-y:auto;overflow-x:hidden}
+.views{position:relative;padding:26px 24px}
+.pv{position:absolute;left:24px;right:24px;top:26px;opacity:0;transform:translateY(12px);pointer-events:none;visibility:hidden;
+  transition:opacity .45s var(--ease),transform .6s var(--ease),visibility 0s linear .6s}
+.pv.on{position:relative;left:auto;right:auto;top:auto;opacity:1;transform:none;pointer-events:auto;visibility:visible;
+  transition:opacity .5s var(--ease) .1s,transform .65s var(--ease) .1s,visibility 0s}
 
-.kicker{font-family:var(--pix);font-size:9px;letter-spacing:1px;color:var(--accent);text-transform:uppercase}
-.logo{font-family:var(--pix);font-size:clamp(34px,8vw,58px);line-height:1.1;margin:18px 0 18px;
-  background:linear-gradient(180deg,#fff 0%,#cfd6ff 45%,#8e7cff 55%,#ff7ad9 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+.kicker{font-family:var(--pix);font-size:8px;letter-spacing:1px;color:var(--accent);text-transform:uppercase}
+.logo{font-family:var(--pix);font-size:40px;line-height:1.1;margin:14px 0 16px;
+  background:linear-gradient(180deg,#fff 0%,#cfd6ff 45%,#8e7cff 56%,#ff7ad9 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
   filter:drop-shadow(0 4px 0 rgba(30,10,60,.9))}
-.lede{font-size:18px;line-height:1.5;color:var(--dim);max-width:46ch}
+.lede{font-size:16px;line-height:1.5;color:var(--dim)}
 .lede strong{color:var(--ink);font-weight:500}
-.rules{list-style:none;margin:24px 0 28px;display:grid;gap:12px}
-.rules li{display:grid;grid-template-columns:28px 1fr;gap:10px;font-size:15px;color:var(--dim);line-height:1.45}
-.rules li i{font-style:normal;font-family:var(--pix);font-size:10px;color:var(--accent);padding-top:3px}
-.tiers{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.chip{font-family:var(--pix);font-size:8px;padding:6px 8px;border:2px solid currentColor;line-height:1;white-space:nowrap}
+h3{font-family:var(--pix);font-weight:400;font-size:8px;color:var(--dim);margin:22px 0 10px;letter-spacing:.5px}
+.legend{list-style:none;display:grid;gap:7px}
+.legend li{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:center;font-size:14px;color:var(--dim)}
+.legend li i{width:12px;height:12px;display:block}
+.legend li b{font-family:var(--pix);font-weight:400;font-size:8px}
+.legend li span{font-family:var(--pix);font-size:8px;color:var(--faint)}
+.stack{display:grid;gap:10px;margin-top:24px}
 
-.btn{appearance:none;border:0;cursor:pointer;font-family:var(--pix);font-size:12px;letter-spacing:.5px;color:var(--accent-ink);background:var(--accent);
-  padding:16px 20px;box-shadow:inset -4px -4px 0 rgba(0,0,0,.22),inset 4px 4px 0 rgba(255,255,255,.35),0 0 0 2px #04140f,0 0 28px rgba(124,247,212,.28);
-  transition:transform .25s var(--ease),box-shadow .25s var(--ease),filter .25s var(--ease)}
-.btn:hover{transform:translateY(-2px);box-shadow:inset -4px -4px 0 rgba(0,0,0,.22),inset 4px 4px 0 rgba(255,255,255,.35),0 0 0 2px #04140f,0 0 40px rgba(124,247,212,.45)}
+.btn{appearance:none;border:0;cursor:pointer;font-family:var(--pix);font-size:11px;letter-spacing:.5px;color:var(--accent-ink);background:var(--accent);
+  padding:15px 18px;box-shadow:inset -4px -4px 0 rgba(0,0,0,.22),inset 4px 4px 0 rgba(255,255,255,.35),0 0 0 2px #04140f,0 0 26px rgba(124,247,212,.25);
+  transition:transform .25s var(--ease),box-shadow .25s var(--ease),opacity .25s;display:flex;justify-content:center;align-items:center;gap:10px}
+.btn:hover{transform:translateY(-2px);box-shadow:inset -4px -4px 0 rgba(0,0,0,.22),inset 4px 4px 0 rgba(255,255,255,.35),0 0 0 2px #04140f,0 0 38px rgba(124,247,212,.42)}
 .btn:active{transform:translateY(1px)}
 .btn:focus-visible{outline:2px solid #fff;outline-offset:4px}
-.btn .k{opacity:.6;margin-left:10px;font:700 15px 'Space Grotesk',sans-serif;vertical-align:-1px}
-.row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-.hint{font-size:13px;color:var(--faint)}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 2px var(--line2)}
+.btn.ghost:hover{box-shadow:inset 0 0 0 2px var(--accent)}
+.btn .k{opacity:.6;font:700 14px 'Space Grotesk',sans-serif}
+.linkbtn{appearance:none;border:0;background:none;color:var(--faint);font:500 13px 'Space Grotesk',sans-serif;cursor:pointer;text-decoration:underline;text-underline-offset:3px;transition:color .2s}
+.linkbtn:hover{color:var(--dim)}
 
-/* ---------- Play ---------- */
-.qtop{display:flex;justify-content:space-between;align-items:center;gap:12px}
-.qnum{font-family:var(--pix);font-size:9px;color:var(--dim)}
-.qnum span{color:var(--ink)}
-.clock{font-family:var(--pix);font-size:11px;color:var(--ink);font-variant-numeric:tabular-nums;transition:color .4s}
-.clock.low{color:var(--warn)}
-.timer{height:6px;background:rgba(160,170,255,.12);margin:14px 0 28px;overflow:hidden}
-.timer i{display:block;height:100%;background:var(--accent);transform-origin:left center;will-change:transform;transition:background-color .5s}
-.timer.low i{background:var(--warn)}
-.ask{font-size:16px;color:var(--dim)}
-.prompt{font-size:clamp(30px,6.4vw,46px);font-weight:700;line-height:1.08;letter-spacing:-.02em;margin:6px 0 26px;text-wrap:balance}
-.field{display:flex;gap:10px}
-.field input{flex:1;min-width:0;font:500 20px 'Space Grotesk',sans-serif;color:var(--ink);background:rgba(255,255,255,.04);border:2px solid var(--line2);padding:14px 16px;outline:none;
+/* prompt */
+.pips{display:flex;gap:6px;margin-bottom:18px}
+.pips i{flex:1;height:8px;background:rgba(160,170,255,.14);transition:background-color .6s var(--ease),transform .6s var(--ease)}
+.pips i.cur{background:rgba(124,247,212,.45);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
+.qmeta{font-family:var(--pix);font-size:8px;color:var(--dim);display:flex;justify-content:space-between}
+.qmeta b{color:var(--ink);font-weight:400}
+.ask{font-size:15px;color:var(--dim);margin-top:26px}
+.prompt{font-size:clamp(28px,3.3vw,38px);font-weight:700;line-height:1.08;letter-spacing:-.02em;margin:6px 0 22px;text-wrap:balance}
+.field{display:grid;gap:10px}
+.field input{width:100%;font:500 19px 'Space Grotesk',sans-serif;color:var(--ink);background:rgba(255,255,255,.04);border:2px solid var(--line2);padding:14px 15px;outline:none;
   transition:border-color .3s var(--ease),box-shadow .3s var(--ease),background .3s}
 .field input::placeholder{color:var(--faint)}
 .field input:focus{border-color:var(--accent);background:rgba(124,247,212,.05);box-shadow:0 0 0 4px rgba(124,247,212,.12)}
-.field .btn{padding:0 18px}
-.under{margin-top:14px;display:flex;justify-content:space-between;gap:12px}
+.field.shake{animation:shake .45s var(--ease)}
+@keyframes shake{20%{transform:translateX(-8px)}40%{transform:translateX(7px)}60%{transform:translateX(-4px)}80%{transform:translateX(2px)}}
+.tries{display:flex;align-items:center;justify-content:space-between;margin-top:14px;font-size:13px;color:var(--faint)}
+.tries .dots{display:flex;gap:5px}
+.tries .dots i{width:9px;height:9px;background:var(--accent);transition:background-color .4s,transform .4s var(--ease)}
+.tries .dots i.used{background:rgba(160,170,255,.18);transform:scale(.7)}
+.msg{min-height:22px;margin-top:12px;font-size:14px;color:var(--bad);opacity:0;transform:translateY(-4px);transition:opacity .35s var(--ease),transform .35s var(--ease)}
+.msg.on{opacity:1;transform:none}
 
-/* ---------- Reveal ---------- */
+/* result */
 .rise{animation:rise .7s var(--ease) both;animation-delay:var(--d,0s)}
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-.tier{font-family:var(--pix);font-size:13px;letter-spacing:1px}
-.your{font-size:clamp(24px,5vw,34px);font-weight:700;letter-spacing:-.01em;margin:14px 0 4px;word-break:break-word}
-.matched{font-size:14px;color:var(--faint);min-height:20px}
-.ly{display:flex;align-items:baseline;gap:12px;margin:22px 0 6px}
-.ly b{font-family:var(--pix);font-weight:400;font-size:clamp(30px,7vw,44px);font-variant-numeric:tabular-nums}
-.ly small{font-family:var(--pix);font-size:10px;color:var(--dim)}
-.meter{position:relative;height:10px;margin:22px 0 8px;background:linear-gradient(90deg,var(--t0) 0 20%,var(--t1) 20% 45%,var(--t2) 45% 70%,var(--t3) 70% 90%,var(--t4) 90%);opacity:.9}
-.meter .pin{position:absolute;top:-7px;left:0;width:4px;height:24px;margin-left:-2px;background:#fff;box-shadow:0 0 0 2px var(--bg),0 0 14px #fff;transition:left 1.4s var(--ease)}
+.tier{font-family:var(--pix);font-size:14px;letter-spacing:1px;margin-top:22px}
+.tierdesc{font-size:13px;color:var(--faint);margin-top:8px;line-height:1.45}
+.your{font-size:28px;font-weight:700;letter-spacing:-.01em;margin:16px 0 2px;word-break:break-word}
+.matched{font-size:13px;color:var(--faint);min-height:18px}
+.gain{display:flex;align-items:baseline;gap:10px;margin:18px 0 4px}
+.gain b{font-family:var(--pix);font-weight:400;font-size:36px;font-variant-numeric:tabular-nums}
+.gain small{font-family:var(--pix);font-size:9px;color:var(--dim)}
+.meter{position:relative;height:8px;margin:20px 0 8px;background:linear-gradient(90deg,#a3abd1 0 18%,#7cf7d4 18% 42%,#6fb7ff 42% 68%,#c08bff 68% 90%,#ffcf5a 90%)}
+.meter .pin{position:absolute;top:-7px;left:0;width:4px;height:22px;margin-left:-2px;background:#fff;box-shadow:0 0 0 2px var(--bg),0 0 14px #fff;transition:left 1.3s var(--ease)}
 .meter.none{filter:grayscale(1);opacity:.25}
-.mlabels{display:flex;justify-content:space-between;font-family:var(--pix);font-size:7px;color:var(--faint)}
-.lists{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:26px 0 28px}
-.lists h4{font-family:var(--pix);font-weight:400;font-size:8px;color:var(--dim);margin-bottom:10px}
-.lists ul{list-style:none;display:grid;gap:6px}
-.lists li{font-size:15px;display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed var(--line);padding-bottom:6px}
-.lists li span{font-family:var(--pix);font-size:8px;color:var(--faint);padding-top:4px;white-space:nowrap}
+.mlabels{display:flex;justify-content:space-between;font-family:var(--pix);font-size:6px;color:var(--faint)}
+.lists{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:22px 0 22px}
+.lists h4{font-family:var(--pix);font-weight:400;font-size:7px;color:var(--dim);margin-bottom:8px}
+.lists ul{list-style:none;display:grid;gap:5px}
+.lists li{font-size:14px;border-bottom:1px dashed var(--line);padding-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* ---------- End ---------- */
-.total{font-family:var(--pix);font-size:clamp(34px,8vw,54px);margin:18px 0 6px;font-variant-numeric:tabular-nums;color:var(--warn);text-shadow:0 4px 0 rgba(60,30,0,.7)}
-.dest{font-size:20px;color:var(--dim);line-height:1.45}
-.dest strong{color:var(--ink)}
-.recap{list-style:none;margin:24px 0 28px;display:grid;gap:2px}
-.recap li{display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line);font-size:15px}
-.recap .c{color:var(--faint);font-size:13px;display:block}
-.recap .t{font-family:var(--pix);font-size:7px}
-.recap .n{font-family:var(--pix);font-size:10px;min-width:70px;text-align:right}
-.newbest{display:inline-block;margin-top:12px;font-family:var(--pix);font-size:9px;color:var(--accent-ink);background:var(--warn);padding:6px 8px}
+/* summary */
+.total{font-family:var(--pix);font-size:38px;margin:16px 0 4px;color:#ffcf5a;text-shadow:0 4px 0 rgba(60,30,0,.7);font-variant-numeric:tabular-nums}
+.reached{font-size:17px;color:var(--dim);line-height:1.45}
+.reached strong{color:var(--ink)}
+.grid{display:flex;gap:6px;margin:22px 0 6px}
+.grid i{width:34px;height:34px;display:block;box-shadow:inset -3px -3px 0 rgba(0,0,0,.25),inset 3px 3px 0 rgba(255,255,255,.25)}
+.recap{list-style:none;margin:18px 0 6px;display:grid}
+.recap li{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.recap .c{color:var(--faint);font-size:12px;display:block}
+.recap .n{font-family:var(--pix);font-size:8px;text-align:right;line-height:1.6}
+.next{font-size:13px;color:var(--faint);margin-top:14px}
+.next b{font-family:var(--pix);font-weight:400;font-size:10px;color:var(--dim);font-variant-numeric:tabular-nums}
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);opacity:0;z-index:9;background:var(--accent);color:var(--accent-ink);font-family:var(--pix);font-size:9px;padding:10px 12px;
+  transition:opacity .35s var(--ease),transform .45s var(--ease);pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
 
-@media (max-width:640px){
-  .hud{grid-template-columns:1fr auto;gap:10px}
-  .track{grid-column:1/-1;grid-row:2}
-  .track .tick em{display:none}
-  .panel{padding:24px 18px}
-  .lists{grid-template-columns:1fr}
-  .field{flex-direction:column}
-  .field .btn{padding:16px}
+@media (max-width:860px){
+  #panel{left:0;right:0;bottom:0;top:auto;width:auto;max-height:56vh;border-left:0;border-right:0;border-bottom:0}
+  .views{padding:20px 16px 24px}
+  .pv{left:16px;right:16px;top:20px}
+  .hud{left:44px;top:14px}
+  .ask{margin-top:16px}
+  .logo{font-size:30px}
+  .prompt{font-size:28px;margin-bottom:16px}
 }
 @media (prefers-reduced-motion:reduce){
-  .screen,.screen.on,.rise,.track .ship,.track .fill,.meter .pin{transition-duration:.01s!important;animation-duration:.01s!important}
+  .pv,.pv.on,.rise,.meter .pin,.toast{transition-duration:.01s!important;animation-duration:.01s!important}
 }
 </style>
 </head>
 <body>
-<canvas id="bg" aria-hidden="true"></canvas>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div id="fade"></div>
 
-<div id="app">
-  <header class="hud">
-    <div class="brand">FAR<b>·</b>OUT</div>
-    <div class="track" id="track">
-      <div class="rail"></div>
-      <div class="fill" id="fill"></div>
-      <div id="ticks"></div>
-      <div class="ship" id="ship"><canvas id="shipcv" width="14" height="7"></canvas></div>
-    </div>
-    <div class="best">BEST<br><span id="best">0</span> LY</div>
-  </header>
-
-  <main class="stage">
-    <div class="screens">
-
-      <!-- Title -->
-      <section class="screen on" id="s-title">
-        <div class="panel">
-          <div class="kicker">A trivia voyage</div>
-          <h1 class="logo">FAR<br>OUT</h1>
-          <p class="lede">Name things. <strong>The more obscure your answer, the farther your ship flies.</strong> Anyone can say “apple”. Who says “salak”?</p>
-          <ul class="rules">
-            <li><i>01</i><span>10 prompts, 30 seconds each, one answer per prompt.</span></li>
-            <li><i>02</i><span>Common answers barely leave orbit. Deep cuts travel up to <strong style="color:var(--ink)">1,000 light years</strong>.</span></li>
-            <li><i>03</i><span>Answers not on the star charts don't move you at all.
-              <div class="tiers">
-                <span class="chip" style="color:var(--t0)">COMMON</span><span class="chip" style="color:var(--t1)">UNCOMMON</span><span class="chip" style="color:var(--t2)">RARE</span><span class="chip" style="color:var(--t3)">OBSCURE</span><span class="chip" style="color:var(--t4)">LEGENDARY</span>
-              </div></span></li>
-          </ul>
-          <div class="row">
-            <button class="btn" id="startBtn">LAUNCH <span class="k">↵</span></button>
-            <span class="hint">Press Enter to launch</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- Play -->
-      <section class="screen" id="s-play">
-        <div class="panel">
-          <div class="qtop">
-            <div class="qnum">PROMPT <span id="qn">1</span>/10</div>
-            <div class="clock" id="clock">30.0</div>
-          </div>
-          <div class="timer" id="timer"><i id="timerbar"></i></div>
-          <div class="ask">Name a…</div>
-          <h2 class="prompt" id="prompt">fruit</h2>
-          <form class="field" id="form" autocomplete="off">
-            <input id="answer" type="text" placeholder="Your answer" maxlength="60" spellcheck="false" autocapitalize="off" aria-label="Your answer">
-            <button class="btn" type="submit">SEND <span class="k">↵</span></button>
-          </form>
-          <div class="under">
-            <span class="hint">Think like nobody else.</span>
-            <span class="hint" id="sofar"></span>
-          </div>
-        </div>
-      </section>
-
-      <!-- Reveal -->
-      <section class="screen" id="s-reveal">
-        <div class="panel" id="revealBody"></div>
-      </section>
-
-      <!-- End -->
-      <section class="screen" id="s-end">
-        <div class="panel" id="endBody"></div>
-      </section>
-
-    </div>
-  </main>
+<div class="hud" aria-live="polite">
+  <div class="brand">FAR<b>·</b>OUT</div>
+  <div class="alt" id="alt">0 km</div>
+  <div class="zone" id="zone">LAUNCH PAD</div>
+  <div class="pts" id="pts">0 PTS</div>
 </div>
 
+<aside id="panel">
+  <div class="views">
+
+    <!-- INTRO -->
+    <section class="pv on" id="v-intro">
+      <div class="kicker" id="introKicker">Daily flight</div>
+      <h1 class="logo">FAR<br>OUT</h1>
+      <p class="lede">Seven prompts a day. Name something, and <strong>the rarer your answer, the higher your rocket climbs.</strong> Common answers barely clear the clouds. Deep cuts reach the outer planets.</p>
+      <h3>WHAT EACH ANSWER IS WORTH</h3>
+      <ul class="legend" id="legend"></ul>
+      <div class="stack">
+        <button class="btn" id="dailyBtn">START TODAY'S FLIGHT <span class="k">↵</span></button>
+        <button class="btn ghost" id="practiceBtn">PRACTICE RUN</button>
+      </div>
+    </section>
+
+    <!-- PROMPT -->
+    <section class="pv" id="v-prompt">
+      <div class="pips" id="pips"></div>
+      <div class="qmeta"><span>PROMPT <b id="qn">1</b> / 7</span><span id="modeLabel">DAILY #1</span></div>
+      <div class="ask">Name a…</div>
+      <h2 class="prompt" id="prompt">fruit</h2>
+      <form class="field" id="form" autocomplete="off">
+        <input id="answer" type="text" placeholder="Your answer" maxlength="60" spellcheck="false" autocapitalize="off" aria-label="Your answer">
+        <button class="btn" type="submit">LAUNCH <span class="k">↵</span></button>
+      </form>
+      <div class="msg" id="msg"></div>
+      <div class="tries"><span>Tries left for answers we don't recognise</span><span class="dots" id="dots"><i></i><i></i><i></i></span></div>
+      <div style="margin-top:18px"><button class="linkbtn" id="skipBtn">Skip this prompt</button></div>
+    </section>
+
+    <!-- RESULT -->
+    <section class="pv" id="v-result"><div id="resultBody"></div></section>
+
+    <!-- SUMMARY -->
+    <section class="pv" id="v-summary"><div id="summaryBody"></div></section>
+
+  </div>
+</aside>
+<div class="toast" id="toast">COPIED</div>
+
+<script src="bank.js"></script>
 <script>
 "use strict";
 /* =========================================================
-   QUESTION BANK
-   Each list is ordered from most common answer to most obscure.
-   Aliases are separated with "|". First alias is the display name.
+   CONFIG
    ========================================================= */
-const BANK = [
-{c:"fruit", l:`apple,banana,orange,strawberry,grape,mango,pineapple,watermelon,cherry,pear,peach,blueberry,kiwi,lemon,raspberry,plum,coconut,lime,cantaloupe,apricot,pomegranate,grapefruit,papaya,fig,blackberry,cranberry,nectarine,honeydew,passion fruit|passionfruit,guava,lychee|litchi,dragon fruit|pitaya,persimmon,tangerine,clementine,date,star fruit|carambola,jackfruit,quince,kumquat,durian,rambutan,mangosteen,gooseberry,elderberry,loquat,soursop|guanabana,cherimoya,feijoa,salak|snake fruit,ackee,jabuticaba,medlar,miracle fruit,cloudberry`},
-{c:"country", l:`united states|usa|us|america|united states of america,canada,mexico,china,japan,france,germany,italy,brazil,united kingdom|uk|england|britain|great britain,russia,india,australia,spain,egypt,south africa,argentina,sweden,norway,ireland,greece,netherlands|holland,switzerland,portugal,south korea|korea,new zealand,turkey|turkiye,nigeria,kenya,peru,chile,poland,vietnam,thailand,colombia,cuba,iceland,finland,denmark,belgium,austria,morocco,indonesia,philippines,pakistan,iran,iraq,ukraine,israel,saudi arabia,jamaica,venezuela,ethiopia,ghana,nepal,mongolia,bhutan,laos,estonia,latvia,lithuania,moldova,belarus,georgia,armenia,azerbaijan,kazakhstan,uzbekistan,kyrgyzstan,tajikistan,turkmenistan,suriname,guyana,belize,brunei,eritrea,djibouti,burundi,rwanda,malawi,lesotho,eswatini|swaziland,gabon,chad,niger,mali,burkina faso,togo,benin,sierra leone,liberia,gambia,guinea-bissau,equatorial guinea,comoros,seychelles,mauritius,cabo verde|cape verde,sao tome and principe,timor-leste|east timor,andorra,liechtenstein,san marino,monaco,vatican city|vatican|holy see,vanuatu,tonga,samoa,micronesia,marshall islands,kiribati,palau,nauru,tuvalu`},
-{c:"animal", l:`dog,cat,lion,elephant,tiger,horse,giraffe,monkey,bear,cow,zebra,wolf,rabbit|bunny,fox,pig,deer,snake,shark,whale,dolphin,mouse,cheetah,kangaroo,gorilla,panda,penguin,koala,hippo|hippopotamus,rhino|rhinoceros,crocodile,alligator,leopard,camel,squirrel,sheep,goat,owl,frog,turtle,octopus,jaguar,hyena,moose,bison,otter,raccoon,sloth,meerkat,lemur,platypus,armadillo,chameleon,capybara,wombat,narwhal,echidna,tapir,axolotl,quokka,pangolin,okapi,serval,caracal,coati,kinkajou,binturong,tarsier,aye-aye,fossa,numbat,gerenuk,dik-dik,saiga,markhor,takin,babirusa,gharial,olm,solenodon,blobfish`},
-{c:"color", l:`red,blue,green,yellow,purple,orange,pink,black,white,brown,gray|grey,teal,turquoise,gold,silver,magenta,cyan,maroon,navy|navy blue,beige,lavender,indigo,violet,crimson,scarlet,olive,coral,ivory,burgundy,mauve,fuchsia,aquamarine,periwinkle,chartreuse,taupe,vermilion,cerulean,ochre,sienna,umber,puce,viridian,celadon,gamboge,glaucous,wenge,falu red,xanadu,zaffre,smaragdine`},
-{c:"sport", l:`soccer|football,basketball,baseball,tennis,golf,hockey|ice hockey,volleyball,swimming,cricket,rugby,boxing,badminton,table tennis|ping pong,skiing,snowboarding,surfing,wrestling,track|athletics|track and field,cycling,gymnastics,lacrosse,fencing,rowing,archery,curling,water polo,handball,polo,squash,bobsled|bobsleigh,luge,skeleton,biathlon,kabaddi,hurling,sepak takraw,bandy,korfball,jai alai|basque pelota|pelota,shinty,underwater hockey,buzkashi,bossaball,chess boxing|chessboxing,kin-ball|kinball`},
-{c:"musical instrument", l:`guitar,piano,drums|drum,violin,flute,trumpet,saxophone|sax,ukulele,harp,cello,clarinet,trombone,bass|bass guitar|double bass,harmonica,accordion,banjo,tuba,xylophone,oboe,tambourine,french horn|horn,viola,bagpipes,mandolin,bassoon,triangle,piccolo,keyboard,sitar,didgeridoo,glockenspiel,marimba,theremin,harpsichord,kalimba,celesta,bouzouki,ocarina,tabla,erhu,shamisen,koto,oud,balalaika,hurdy-gurdy|hurdy gurdy,duduk,contrabassoon,sackbut,crumhorn,serpent,nyckelharpa,ondes martenot,handpan|hang drum,mbira,veena|vina`},
-{c:"planet, dwarf planet or moon in our solar system", l:`earth,mars,jupiter,saturn,moon|the moon|luna,venus,mercury,neptune,uranus,pluto,titan,europa,io,ganymede,callisto,phobos,deimos,enceladus,triton,charon,ceres,eris,mimas,iapetus,rhea,dione,tethys,miranda,titania,oberon,ariel,umbriel,hyperion,phoebe,haumea,makemake,nereid,proteus,amalthea,himalia,janus,epimetheus,pan,daphnis,thebe,metis,adrastea,larissa,despina,galatea,naiad,thalassa,puck,cordelia,ophelia,sycorax,caliban,nix,hydra,kerberos,styx`},
-{c:"vegetable", l:`carrot,broccoli,potato,lettuce,tomato,onion,corn,cucumber,spinach,pea,celery,pepper|bell pepper,cabbage,cauliflower,green bean,garlic,zucchini|courgette,asparagus,mushroom,eggplant|aubergine,sweet potato,kale,radish,beet|beetroot,brussels sprout,squash,pumpkin,artichoke,leek,turnip,parsnip,okra,bok choy|pak choi,arugula|rocket,shallot,fennel,kohlrabi,rutabaga|swede,jicama,chard|swiss chard,endive,radicchio,celeriac,daikon,taro,cassava|yuca|manioc,salsify,sunchoke|jerusalem artichoke,burdock,romanesco,fiddlehead,cardoon,samphire,oca,mashua,ulluco`},
-{c:"dog breed", l:`labrador|lab|labrador retriever,golden retriever,german shepherd,poodle,bulldog,beagle,chihuahua,husky|siberian husky,pug,rottweiler,dachshund|wiener dog,boxer,corgi,yorkshire terrier|yorkie,shih tzu,dalmatian,great dane,doberman,pit bull|pitbull,border collie,pomeranian,maltese,cocker spaniel,australian shepherd,bernese mountain dog,saint bernard|st bernard,greyhound,mastiff,schnauzer,shiba inu,akita,bloodhound,basset hound,chow chow,newfoundland,samoyed,whippet,weimaraner,vizsla,papillon,basenji,shar pei,afghan hound,borzoi,bichon frise,cavalier king charles spaniel,rhodesian ridgeback,komondor,puli,xoloitzcuintli|xolo,otterhound,lagotto romagnolo,mudi,azawakh,kooikerhondje,stabyhoun,norwegian lundehund,peruvian inca orchid,bergamasco,sloughi,catalburun`},
-{c:"chemical element", l:`oxygen,hydrogen,carbon,gold,iron,nitrogen,helium,silver,copper,sodium,calcium,neon,lead,aluminum|aluminium,zinc,potassium,uranium,chlorine,magnesium,mercury,sulfur|sulphur,platinum,lithium,silicon,tin,phosphorus,nickel,titanium,iodine,fluorine,argon,plutonium,cobalt,chromium,tungsten,radon,krypton,xenon,boron,radium,manganese,arsenic,beryllium,bromine,barium,cesium|caesium,strontium,selenium,gallium,germanium,palladium,osmium,iridium,bismuth,cadmium,antimony,vanadium,zirconium,molybdenum,indium,tellurium,polonium,francium,thorium,americium,einsteinium,scandium,yttrium,lanthanum,cerium,neodymium,europium,gadolinium,terbium,dysprosium,holmium,erbium,thulium,ytterbium,lutetium,hafnium,tantalum,rhenium,rhodium,ruthenium,technetium,promethium,samarium,praseodymium,astatine,actinium,protactinium,neptunium,curium,berkelium,californium,fermium,mendelevium,nobelium,lawrencium,rutherfordium,dubnium,seaborgium,bohrium,hassium,meitnerium,darmstadtium,roentgenium,copernicium,nihonium,flerovium,moscovium,livermorium,tennessine,oganesson`},
-{c:"bird", l:`eagle,parrot,owl,penguin,crow,robin,flamingo,pigeon,hawk,duck,swan,seagull|gull,cardinal,blue jay,sparrow,ostrich,peacock|peafowl,hummingbird,chicken,turkey,toucan,falcon,vulture,pelican,woodpecker,stork,heron,crane,emu,kiwi,raven,magpie,finch,canary,albatross,puffin,kingfisher,cockatoo,macaw,condor,osprey,egret,ibis,roadrunner,starling,wren,kookaburra,dodo,lyrebird,cassowary,hornbill,secretary bird,quetzal,shoebill,hoatzin,potoo,frogmouth,kakapo,kea,takahe,bowerbird,motmot,oilbird,sunbittern`},
-{c:"board or card game", l:`chess,monopoly,checkers|draughts,scrabble,uno,poker,solitaire,risk,clue|cluedo,go fish,battleship,catan|settlers of catan,backgammon,snakes and ladders|chutes and ladders,candy land|candyland,connect four|connect 4,sorry,jenga,yahtzee,pictionary,trivial pursuit,guess who,go,mahjong|mahjongg,dominoes|domino,operation,mouse trap,blackjack,ticket to ride,pandemic,carcassonne,codenames,rummy,hearts,spades,bridge,euchre,cribbage,canasta,gin rummy,mancala,othello|reversi,stratego,parcheesi|ludo,shogi,xiangqi|chinese chess,diplomacy,azul,wingspan,agricola,terraforming mars,twilight struggle,crokinole,pinochle,skat,belote,sheepshead,nine men's morris|nine mens morris,pachisi,senet,hnefatafl`},
-{c:"gemstone", l:`diamond,ruby,emerald,sapphire,amethyst,pearl,opal,topaz,jade,quartz,garnet,turquoise,onyx,aquamarine,peridot,citrine,amber,jasper,obsidian,moonstone,lapis lazuli|lapis,tanzanite,tourmaline,malachite,agate,beryl,zircon,alexandrite,spinel,tiger's eye|tigers eye|tiger eye,bloodstone,carnelian,labradorite,rhodochrosite,chrysoberyl,kunzite,morganite,iolite,sodalite,sunstone,larimar,benitoite,taaffeite,painite,grandidierite,jeremejevite,musgravite,red beryl|bixbite,poudretteite,serendibite`},
-{c:"part of the human body", l:`hand,head,arm,leg,foot,eye,nose,ear,mouth,finger,toe,heart,brain,knee,elbow,shoulder,neck,hair,back,chest,stomach,lung,liver,kidney,skin,tongue,tooth|teeth,lip,chin,cheek,wrist,ankle,hip,thumb,eyebrow,forehead,spine,rib,skull,pancreas,spleen,appendix,gallbladder,esophagus|oesophagus,femur,tibia,fibula,clavicle|collarbone,sternum,patella|kneecap,scapula,uvula,cochlea,coccyx|tailbone,stapes,incus,malleus,philtrum,glabella,hyoid,lunula,tragus,columella,canthus,frenulum,pisiform,popliteal fossa`},
-{c:"cheese", l:`cheddar,mozzarella,parmesan|parmigiano reggiano,swiss,brie,gouda,feta,american,provolone,blue cheese|blue,camembert,ricotta,cream cheese,cottage cheese,pepper jack,monterey jack,colby,goat cheese|chevre,gruyere,mascarpone,halloumi,havarti,manchego,emmental|emmentaler,edam,roquefort,gorgonzola,stilton,pecorino,asiago,paneer,burrata,fontina,munster,limburger,raclette,comte,taleggio,jarlsberg,wensleydale,red leicester,double gloucester,queso fresco,cotija,oaxaca,boursin,reblochon,epoisses,vacherin,caciocavallo,mimolette,kashkaval,brunost|gjetost,ossau-iraty,banon,tete de moine,stinking bishop,leipajuusto,casu marzu,pule`},
-{c:"capital city", l:`london,paris,washington|washington dc|washington d c,tokyo,rome,berlin,madrid,beijing,moscow,ottawa,mexico city,canberra,cairo,athens,dublin,amsterdam,lisbon,seoul,new delhi|delhi,bangkok,buenos aires,brasilia,stockholm,oslo,vienna,brussels,copenhagen,helsinki,warsaw,prague,budapest,ankara,havana,lima,santiago,bogota,nairobi,jakarta,manila,hanoi,reykjavik,wellington,bern,kyiv|kiev,tehran,baghdad,riyadh,islamabad,kabul,caracas,quito,montevideo,kingston,nassau,abuja,accra,addis ababa,dakar,tallinn,riga,vilnius,ljubljana,bratislava,tirana,skopje,podgorica,sarajevo,chisinau,tbilisi,yerevan,baku,valletta,vaduz,andorra la vella,paramaribo,georgetown,belmopan,tegucigalpa,managua,asuncion,windhoek,gaborone,lilongwe,maseru,mbabane,antananarivo,port louis,bishkek,dushanbe,ashgabat,thimphu,ulaanbaatar|ulan bator,ouagadougou,bujumbura,gitega,malabo,moroni,honiara,port vila,apia,nuku'alofa|nukualofa,palikir,majuro,yaren,tarawa|south tarawa,funafuti,ngerulmud`},
-{c:"thing you'd find in space", l:`star,planet,moon,asteroid,comet,black hole,sun,galaxy,meteor,satellite,nebula,rocket,astronaut,space station|iss|international space station,meteorite,supernova,alien,ufo,space dust|cosmic dust|dust,dark matter,dark energy,quasar,pulsar,neutron star,white dwarf,red giant,brown dwarf,exoplanet,wormhole,cosmic ray,solar wind,solar flare,kuiper belt,oort cloud,magnetar,blazar,gamma ray burst,globular cluster,protostar,accretion disk,event horizon,lagrange point,heliopause,kilonova,cosmic microwave background|cmb,rogue planet,hypervelocity star,cosmic void,fast radio burst,quark star|strange star,boson star,bok globule,herbig-haro object,zodiacal light,gegenschein`},
-{c:"shape", l:`circle,square,triangle,rectangle,star,heart,oval,diamond,pentagon,hexagon,octagon,rhombus,trapezoid|trapezium,cube,sphere,pyramid,cylinder,cone,parallelogram,crescent,ellipse,heptagon,nonagon,decagon,kite,prism,cuboid,arrow,cross,spiral,semicircle,tetrahedron,octahedron,dodecahedron,icosahedron,torus,dodecagon,hendecagon|undecagon,trefoil,quatrefoil,annulus,lune,cardioid,deltoid,astroid,mobius strip,klein bottle,reuleaux triangle,superellipse,trapezohedron,rhombicuboctahedron,sphericon,oloid,gomboc`},
-{c:"dinosaur", l:`tyrannosaurus|t rex|trex|tyrannosaurus rex,triceratops,velociraptor|raptor,stegosaurus,brachiosaurus,pterodactyl|pteranodon,spinosaurus,ankylosaurus,diplodocus,brontosaurus,apatosaurus,allosaurus,parasaurolophus,pachycephalosaurus,iguanodon,dilophosaurus,carnotaurus,giganotosaurus,compsognathus,gallimimus,archaeopteryx,deinonychus,mosasaurus,plesiosaurus,therizinosaurus,baryonyx,argentinosaurus,oviraptor,troodon,utahraptor,maiasaura,edmontosaurus,styracosaurus,protoceratops,microraptor,suchomimus,ceratosaurus,megalosaurus,kentrosaurus,amargasaurus,nigersaurus,dreadnoughtus,mamenchisaurus,sinosauropteryx,yutyrannus,nothronychus,irritator,mapusaurus,kosmoceratops,dracorex,zuul,borealopelta,minmi,pegomastax,halszkaraptor,qianzhousaurus`},
-{c:"language", l:`english,spanish,french,german,chinese|mandarin,japanese,italian,russian,portuguese,arabic,korean,hindi,dutch,greek,latin,swedish,hebrew,polish,turkish,vietnamese,thai,cantonese,norwegian,danish,finnish,irish|irish gaelic|gaelic,welsh,swahili,tagalog|filipino,urdu,bengali|bangla,punjabi,persian|farsi,indonesian,malay,hungarian,czech,romanian,ukrainian,sign language|asl|american sign language,esperanto,sanskrit,tamil,telugu,icelandic,basque,catalan,yiddish,zulu,xhosa,maori,hawaiian,navajo,cherokee,quechua,amharic,tibetan,mongolian,georgian,armenian,albanian,estonian,latvian,lithuanian,maltese,yoruba,igbo,hausa,wolof,faroese,breton,cornish,manx,sami,inuktitut,guarani,aymara,nahuatl,ainu,toki pona,lojban,volapuk,rotokas,piraha,silbo gomero,ithkuil`},
-{c:"type of weather", l:`rain,snow,sunny|sun|sunshine,cloudy|clouds|cloud,wind|windy,storm,thunder,lightning,hail,fog,tornado,hurricane,sleet,drizzle,blizzard,mist,frost,humidity|humid,heat wave|heatwave,thunderstorm,monsoon,typhoon,cyclone,drought,rainbow,overcast,dust storm|sandstorm,freezing rain,black ice,ice storm,whiteout,squall,gale,waterspout,microburst,polar vortex,haboob,derecho,graupel,virga,sundog|sun dog,chinook,foehn|fohn,sirocco,mistral,bora,thundersnow,ball lightning,diamond dust,haar,rime,mammatus,noctilucent cloud,fire whirl|firenado,morning glory cloud,st elmo's fire|st elmos fire`},
-{c:"thing in a kitchen", l:`fridge|refrigerator,oven,stove,sink,microwave,knife,spoon,fork,plate,pan,toaster,blender,kettle,cup,bowl,pot,spatula,cutting board,dishwasher,cabinet|cupboard,whisk,ladle,colander,grater,peeler,rolling pin,tongs,can opener,measuring cup,oven mitt,apron,coffee maker,sponge,timer,mixer,wok,skillet,saucepan,sieve,funnel,mortar and pestle|mortar|pestle,dutch oven,trivet,mandoline,zester|microplane,ramekin,baster,ricer,mezzaluna,bench scraper,tagine,chinois,bain marie,salamander,tamis,cloche,spider strainer`},
-{c:"Greek god or goddess", l:`zeus,poseidon,hades,athena,apollo,aphrodite,hermes,ares,hera,artemis,dionysus,hephaestus,demeter,persephone,kronos|cronus,gaia,eros,nike,prometheus,atlas,hestia,pan,helios,selene,nyx,eos,hecate,nemesis,tyche,iris,morpheus,hypnos,thanatos,uranus|ouranos,rhea,oceanus,hyperion,themis,mnemosyne,chaos,erebus,aether,hemera,tartarus,eris,asclepius,hebe,aeolus,triton,proteus,nereus,boreas,zephyrus,notus,eurus,thalassa,ananke,chronos,phanes,momus,achlys,oizys,palaemon,harpocrates`},
-{c:"tree", l:`oak,pine,maple,palm,birch,willow,apple,cherry,redwood,cedar,spruce,fir,elm,ash,sequoia,cypress,magnolia,dogwood,aspen,poplar,beech,walnut,eucalyptus,baobab,sycamore,chestnut,hickory,juniper,olive,cottonwood,larch,hemlock,yew,alder,hawthorn,holly,mahogany,teak,banyan,acacia,mangrove,ginkgo,linden|lime,hornbeam,rowan|mountain ash,sassafras,tupelo,catalpa,buckeye,paulownia,jacaranda,monkey puzzle,ceiba|kapok,bristlecone pine,rainbow eucalyptus,dragon blood tree|dragon's blood tree|dragons blood tree,wollemi pine,quiver tree,osage orange,sausage tree,cannonball tree,sandbox tree,ombu`},
-{c:"mythical creature", l:`dragon,unicorn,mermaid,phoenix,vampire,werewolf,ghost,fairy,centaur,griffin|gryphon|griffon,pegasus,minotaur,cyclops,troll,goblin,elf,giant,bigfoot|sasquatch|yeti,kraken,hydra,gorgon|medusa,sphinx,basilisk,leprechaun,banshee,siren,chimera,zombie,ogre,gnome,nymph,satyr,harpy,cerberus,loch ness monster|nessie,chupacabra,golem,genie|djinn|jinn,kelpie,wendigo,kitsune,kappa,tengu,manticore,cockatrice,wyvern,selkie,thunderbird,roc,bunyip,qilin|kirin,baku,nue,amarok,ahuizotl,encantado,tikbalang,aswang,mokele-mbembe,camazotz,lamassu,jorogumo,nuckelavee,leshy,rusalka,alkonost,gamayun,simurgh,peryton,jackalope`},
+const ROUNDS=7, MAX_TRIES=3;
+const TIERS={
+  ground:{name:'GROUNDED',    pts:5,   col:'#a3abd1', emoji:'⬜', desc:'The answer almost everyone gives.'},
+  over:  {name:'OVERTHOUGHT', pts:15,  col:'#ff9f6b', emoji:'🟧', desc:'Feels obscure, but it’s where everyone goes when they try to be clever.'},
+  lift:  {name:'LIFTOFF',     pts:25,  col:'#7cf7d4', emoji:'🟩', desc:'Well known, but not the first thing people say.'},
+  orbit: {name:'ORBIT',       pts:45,  col:'#6fb7ff', emoji:'🟦', desc:'A good pull. Most people won’t think of it.'},
+  deep:  {name:'DEEP SPACE',  pts:70,  col:'#c08bff', emoji:'🟪', desc:'Properly obscure. Very few people get here.'},
+  sing:  {name:'SINGULARITY', pts:100, col:'#ffcf5a', emoji:'🟨', desc:'About as rare as a real answer gets.'},
+  miss:  {name:'NO SIGNAL',   pts:0,   col:'#ff6b8b', emoji:'⬛', desc:'Nothing on our charts matched.'},
+};
+const TIER_ORDER=['ground','over','lift','orbit','deep','sing'];
+// Altitude zones, in points. km values are used to turn points into a readable distance.
+const ZONES=[
+  {at:0,   name:'Launch Pad',          km:0},
+  {at:40,  name:'Troposphere',         km:12},
+  {at:90,  name:'Stratosphere',        km:50},
+  {at:130, name:'Mesosphere',          km:85},
+  {at:160, name:'Kármán Line',         km:100},
+  {at:215, name:'Low Earth Orbit',     km:400},
+  {at:300, name:'The Moon',            km:384400},
+  {at:400, name:'Mars',                km:2.25e8},
+  {at:450, name:'Asteroid Belt',       km:4.0e8},
+  {at:500, name:'Jupiter',             km:7.78e8},
+  {at:570, name:'Saturn',              km:1.43e9},
+  {at:635, name:'Neptune',             km:4.5e9},
+  {at:700, name:'Interstellar Space',  km:9.46e12},
 ];
 
 /* =========================================================
@@ -259,10 +239,10 @@ function singular(s){
   if(s.length>3 && s.endsWith('s') && !s.endsWith('ss') && !s.endsWith('us') && !s.endsWith('is')) return s.slice(0,-1);
   return s;
 }
-function keyOf(s){ return singular(norm(s)).replace(/ /g,''); }
+const keyOf=s=>singular(norm(s)).replace(/ /g,'');
 function lev(a,b,max){
   if(Math.abs(a.length-b.length)>max) return max+1;
-  let prev=new Array(b.length+1); for(let j=0;j<=b.length;j++) prev[j]=j;
+  let prev=[]; for(let j=0;j<=b.length;j++) prev[j]=j;
   for(let i=1;i<=a.length;i++){
     const cur=[i]; let best=i;
     for(let j=1;j<=b.length;j++){
@@ -274,64 +254,46 @@ function lev(a,b,max){
   }
   return prev[b.length];
 }
-const titleCase=s=>s.replace(/\b([a-z])/g,(m,c)=>c.toUpperCase()).replace(/\bAnd\b/g,'and').replace(/\bOf\b/g,'of');
+const titleCase=s=>s.replace(/(^|[\s-])([a-z])/g,(m,a,c)=>a+c.toUpperCase()).replace(/\bAnd\b/g,'and').replace(/\bOf\b/g,'of');
 for(const q of BANK){
-  q.items = q.l.split(',').map((raw,i)=>{
+  q.items=q.l.split(',').map((raw,i)=>{
     const aliases=raw.split('|').map(a=>a.trim()).filter(Boolean);
     return {name:titleCase(aliases[0]), keys:aliases.map(keyOf), i};
   });
   q.map=new Map();
   for(const it of q.items) for(const k of it.keys) if(!q.map.has(k)) q.map.set(k,it);
+  q.over=new Set();
+  for(const n of (OVERTHOUGHT[q.c]||[])){ const it=q.map.get(keyOf(n)); if(it) q.over.add(it); else console.warn('overthought not found',q.c,n); }
 }
-function match(q, input){
+function match(q,input){
   const k=keyOf(input); if(!k) return null;
   if(q.map.has(k)) return q.map.get(k);
   if(k.length<4) return null;
-  let best=null, bd=9;
-  const tol=k.length>=9?2:1;
+  let best=null,bd=9; const tol=k.length>=9?2:1;
   for(const [key,it] of q.map){
     if(key.length<4) continue;
     const d=lev(k,key,tol);
-    if(d<=tol && d<bd){bd=d;best=it;}
+    if(d<=tol&&d<bd){bd=d;best=it;}
   }
   return best;
 }
-
-/* =========================================================
-   SCORING
-   ========================================================= */
-const TIERS=[
-  {name:'COMMON',   col:'var(--t0)', max:.20},
-  {name:'UNCOMMON', col:'var(--t1)', max:.45},
-  {name:'RARE',     col:'var(--t2)', max:.70},
-  {name:'OBSCURE',  col:'var(--t3)', max:.90},
-  {name:'LEGENDARY',col:'var(--t4)', max:1.01},
-];
-function score(q,it){
-  const p = it.i/(q.items.length-1);
-  const ly = Math.max(1, Math.round(1000*Math.pow(p,1.7)));
-  const tier = TIERS.find(t=>p<t.max);
-  return {p, ly, tier};
+function grade(q,it){
+  const p=it.i/(q.items.length-1);
+  let t= p<.18?'ground': p<.42?'lift': p<.68?'orbit': p<.9?'deep':'sing';
+  if(q.over.has(it)) t='over';
+  return {p,tier:t,pts:TIERS[t].pts};
 }
-const STARS=[
-  [0,'Earth'],[4.24,'Proxima Centauri'],[8.6,'Sirius'],[11.9,'Tau Ceti'],[25,'Vega'],[36.7,'Arcturus'],
-  [65,'Aldebaran'],[310,'Canopus'],[433,'Polaris'],[548,'Betelgeuse'],[860,'Rigel'],[1344,'the Orion Nebula'],
-  [2600,'Deneb'],[6500,'the Crab Nebula'],[7500,'Eta Carinae'],[10000,'the edge of the Orion Arm']
-];
-const TRACK_MAX=10000;
-const trackPos=d=>Math.log10(1+d)/Math.log10(1+TRACK_MAX);
 
 /* =========================================================
    UTILITIES
    ========================================================= */
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 function makeNoise(seed){
-  const r=mulberry32(seed), p=new Uint16Array(512), v=new Float32Array(256), perm=new Uint8Array(256);
+  const r=mulberry32(seed),p=new Uint16Array(512),v=new Float32Array(256),perm=new Uint8Array(256);
   for(let i=0;i<256;i++){perm[i]=i;v[i]=r();}
   for(let i=255;i>0;i--){const j=(r()*(i+1))|0;const t=perm[i];perm[i]=perm[j];perm[j]=t;}
   for(let i=0;i<512;i++)p[i]=perm[i&255];
-  const h=(x,y,z)=>v[p[p[p[x&255]+(y&255)]+(z&255)]];
-  const f=t=>t*t*(3-2*t);
+  const h=(x,y,z)=>v[p[p[p[x&255]+(y&255)]+(z&255)]], f=t=>t*t*(3-2*t);
   function n3(x,y,z){
     const xi=Math.floor(x),yi=Math.floor(y),zi=Math.floor(z),xf=x-xi,yf=y-yi,zf=z-zi,u=f(xf),w=f(yf),s=f(zf);
     const a=h(xi,yi,zi),b=h(xi+1,yi,zi),c=h(xi,yi+1,zi),d=h(xi+1,yi+1,zi),e=h(xi,yi,zi+1),g=h(xi+1,yi,zi+1),k=h(xi,yi+1,zi+1),l=h(xi+1,yi+1,zi+1);
@@ -343,565 +305,757 @@ function makeNoise(seed){
 const BAYER=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5].map(v=>(v+.5)/16);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t)};
 const easeOut=t=>1-Math.pow(1-t,3);
+const easeInOut=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
 const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function ptsToKm(p){
+  if(p<=0) return 0;
+  for(let i=1;i<ZONES.length;i++){
+    const a=ZONES[i-1],b=ZONES[i];
+    if(p<=b.at){
+      const f=(p-a.at)/(b.at-a.at);
+      return a.km===0? b.km*f : Math.exp(lerp(Math.log(a.km),Math.log(b.km),f));
+    }
+  }
+  return ZONES[ZONES.length-1].km;
+}
+function fmtDist(km){
+  if(km<10) return km.toFixed(1)+' km';
+  if(km<1e6) return Math.round(km).toLocaleString()+' km';
+  if(km<1e9) return (km/1e6).toFixed(km<1e8?1:0)+' million km';
+  if(km<9e11) return (km/1e9).toFixed(2)+' billion km';
+  return (km/9.46e12).toFixed(2)+' light years';
+}
+const zoneAt=p=>{let z=ZONES[0];for(const s of ZONES) if(s.at<=p+.01) z=s; return z;};
 
 /* =========================================================
-   PLANET TEXTURES  (equirectangular, sampled on a sphere so they tile)
-   alpha channel = emissive flag: 0 normal, 1 always glowing, 2 city light (night only)
+   PIXEL PLANETS
+   Each planet keeps an equirectangular texture and is re-shaded every
+   frame into a small canvas, so it really rotates. Alpha in the texture
+   marks emissive pixels: 1 always glows, 2 city lights (night side only).
    ========================================================= */
-const TW=192, TH=96;
-function genTexture(type, seed){
-  const N=makeNoise(seed), N2=makeNoise(seed+101), R=mulberry32(seed*13+7);
-  const tex=new Uint8ClampedArray(TW*TH*4);
-  const cloud=type==='terran'?new Uint8Array(TW*TH):null;
-  const craters=[];
-  if(type==='rocky'||type==='desert'){
-    const n=type==='rocky'?38:22;
-    for(let i=0;i<n;i++){const z=R()*2-1,ph=R()*Math.PI*2,s=Math.sqrt(1-z*z);craters.push([s*Math.cos(ph),z,s*Math.sin(ph),.05+Math.pow(R(),2.2)*.32]);}
+const TW=192,TH=96;
+const PAL={
+  jupiter:[[238,218,176],[214,162,104],[176,110,70],[242,232,206],[150,88,58],[222,188,132],[196,140,90]],
+  saturn:[[242,228,184],[228,208,152],[208,182,122],[248,240,208],[192,162,106],[234,218,172]],
+  neptune:[[72,112,222],[56,92,200],[98,142,236],[44,70,172],[124,172,246],[62,102,212]],
+};
+function genTexture(type,seed,o={}){
+  const N=makeNoise(seed),N2=makeNoise(seed+101),R=mulberry32(seed*13+7);
+  const tex=new Uint8ClampedArray(TW*TH*4), cloud=type==='terran'?new Uint8Array(TW*TH):null, craters=[];
+  if(type==='rocky'||type==='mars'){
+    const n=type==='rocky'?40:18;
+    for(let i=0;i<n;i++){const z=R()*2-1,ph=R()*Math.PI*2,s=Math.sqrt(1-z*z);craters.push([s*Math.cos(ph),z,s*Math.sin(ph),.05+Math.pow(R(),2.2)*.3]);}
   }
-  const set=(o,c,e=0)=>{tex[o]=c[0];tex[o+1]=c[1];tex[o+2]=c[2];tex[o+3]=e;};
+  const set=(i,c,e=0)=>{tex[i]=c[0];tex[i+1]=c[1];tex[i+2]=c[2];tex[i+3]=e;};
   for(let y=0;y<TH;y++){
-    const lat=Math.PI/2-(y+.5)/TH*Math.PI, cl=Math.cos(lat), py=Math.sin(lat);
+    const lat=Math.PI/2-(y+.5)/TH*Math.PI,cl=Math.cos(lat),py=Math.sin(lat);
     for(let x=0;x<TW;x++){
-      const lon=(x+.5)/TW*Math.PI*2, px=cl*Math.cos(lon), pz=cl*Math.sin(lon), o=(y*TW+x)*4;
+      const lon=(x+.5)/TW*Math.PI*2,px=cl*Math.cos(lon),pz=cl*Math.sin(lon),i=(y*TW+x)*4;
       if(type==='terran'){
-        const h=N(px*1.7+9,py*1.7,pz*1.7,6), m=N2(px*2.2,py*2.2,pz*2.2,4);
-        const capEdge=1.12+(N2(px*5,py*5,pz*5,3)-.5)*.6;
-        let c, e=0;
-        if(Math.abs(lat)>capEdge) c=[236,242,255];
-        else if(h<.43) c=[18,40,104];
-        else if(h<.475) c=[26,70,140];
-        else if(h<.50) c=[46,120,170];
+        const h=N(px*1.7+9,py*1.7,pz*1.7,6),m=N2(px*2.2,py*2.2,pz*2.2,4),cap=1.12+(N2(px*5,py*5,pz*5,3)-.5)*.6;
+        let c,e=0;
+        if(Math.abs(lat)>cap) c=[236,242,255];
+        else if(h<.43) c=[18,40,104]; else if(h<.475) c=[26,70,140]; else if(h<.5) c=[46,120,170];
         else if(h<.515) c=[214,198,132];
-        else if(h<.575){ c = (m>.56 && Math.abs(lat)<.7)?[196,152,88]:[78,152,66]; if(R()<.07) e=2; }
-        else if(h<.62){ c=[40,104,54]; if(R()<.03) e=2; }
-        else if(h<.665) c=[118,100,82];
-        else c=[238,238,244];
-        set(o,c,e);
-        const cv=N2(px*3+30,py*5.5,pz*3,5);
-        cloud[y*TW+x]=cv>.58?255:cv>.545?140:0;
+        else if(h<.575){c=(m>.56&&Math.abs(lat)<.7)?[196,152,88]:[78,152,66]; if(R()<.07)e=2;}
+        else if(h<.62){c=[40,104,54]; if(R()<.03)e=2;}
+        else if(h<.665) c=[118,100,82]; else c=[238,238,244];
+        set(i,c,e);
+        const cv=N2(px*3+30,py*5.5,pz*3,5); cloud[y*TW+x]=cv>.58?255:cv>.545?140:0;
       } else if(type==='gas'){
-        const t=lat*5.2+(N(px*2,py*9,pz*2,4)-.5)*1.6;
-        const P=[[238,218,176],[214,162,104],[176,110,70],[242,232,206],[150,88,58],[222,188,132],[196,140,90]];
+        const P=o.pal||PAL.jupiter;
+        const t=lat*(o.bands||5.2)+(N(px*2,py*9,pz*2,4)-.5)*(o.turb||1.6);
         let c=P[((Math.floor(t*1.25)%P.length)+P.length)%P.length];
-        // great storm
-        let dl=lon-1.1; dl=Math.atan2(Math.sin(dl),Math.cos(dl));
-        const dx=dl*cl/.34, dy=(lat+.36)/.13, d=dx*dx+dy*dy;
-        if(d<1) c=d<.3?[196,86,58]:d<.65?[222,126,80]:[244,206,166];
-        set(o,c);
-      } else if(type==='lava'){
-        const h=N(px*2.4,py*2.4,pz*2.4,5), cr=Math.abs(N2(px*3+4,py*3,pz*3,4)-.5);
-        if(h<.39) set(o,[236,84,30],1);
-        else if(cr<.018) set(o,[255,214,96],1);
-        else if(cr<.034) set(o,[255,116,44],1);
-        else set(o,h<.47?[44,26,30]:h<.55?[68,42,40]:[96,64,54]);
-      } else if(type==='ice'){
-        const h=N(px*2.2,py*2.2,pz*2.2,5), cr=Math.abs(N2(px*4,py*4,pz*4,3)-.5);
-        set(o, cr<.016?[108,150,206]: h<.46?[170,208,238]: h<.54?[204,228,250]:[238,246,255]);
-      } else if(type==='alien'){
-        const w=N2(px*2,py*2,pz*2,3);
-        const h=N(px*1.6+w*2,py*3+w*1.5,pz*1.6,5);
-        const P=[[34,24,80],[86,38,134],[150,60,160],[58,164,168],[150,240,212]];
-        set(o,P[clamp(Math.floor((h-.3)*12.5),0,4)]);
-      } else { // rocky / desert
+        if(o.storm){
+          let dl=lon-o.storm.lon; dl=Math.atan2(Math.sin(dl),Math.cos(dl));
+          const dx=dl*cl/o.storm.w,dy=(lat-o.storm.lat)/o.storm.h,d=dx*dx+dy*dy;
+          if(d<1) c=o.storm.cols[d<.3?0:d<.65?1:2];
+        }
+        set(i,c);
+      } else if(type==='rocky'||type==='mars'){
         const h=N(px*3,py*3,pz*3,5);
-        let c = type==='rocky'
-          ? (h<.45?[112,108,106]:h<.53?[142,136,130]:[170,164,156])
-          : (h<.45?[168,92,56]:h<.53?[206,128,74]:[232,170,108]);
+        let c= type==='rocky' ? (h<.45?[112,108,106]:h<.53?[142,136,130]:[172,166,158])
+                              : (h<.45?[136,58,38]:h<.53?[176,84,52]:[208,118,74]);
+        if(type==='mars' && Math.abs(lat)>1.25+(N2(px*6,py*6,pz*6,2)-.5)*.4) c=[240,232,226];
         for(const k of craters){
           const dot=px*k[0]+py*k[1]+pz*k[2]; if(dot<.8) continue;
           const d=Math.acos(clamp(dot,-1,1))/k[3];
-          if(d<.78){ c=c.map(v=>v*.72); break; }
-          if(d<1){ c=c.map(v=>Math.min(255,v*1.18)); break; }
+          if(d<.78){c=c.map(v=>v*.72);break;}
+          if(d<1){c=c.map(v=>Math.min(255,v*1.18));break;}
         }
-        set(o,c);
+        set(i,c);
       }
     }
   }
   return {tex,cloud};
 }
-
-/* =========================================================
-   PLANET  (pixel-art sphere rendered every frame into a small canvas)
-   ========================================================= */
 const LIGHT=(()=>{const v=[-.62,-.46,.64],l=Math.hypot(...v);return v.map(x=>x/l)})();
-const SHADE=[.14,.32,.55,.8,1];
-const SHADOW_TINT=[14,10,40];
+const SHADE=[.12,.3,.54,.8,1], SHADOW_TINT=[12,10,38];
 class Planet{
   constructor(o){
-    Object.assign(this,{tilt:0,speed:.01,atmo:null,aw:.14,depth:.2,rot:Math.random()*TW,ring:null},o);
-    const S=this.size, Rr=S/2;
+    Object.assign(this,{tilt:0,speed:.01,atmo:null,aw:.14,rot:Math.random()*TW,ring:null,tex:{}},o);
+    const S=this.size,Rr=S/2;
     const ext=this.ring?this.ring.out*1.02:(this.atmo?1+this.aw+.06:1.04);
     const C=this.C=Math.ceil(S*ext)+4;
     this.cv=document.createElement('canvas'); this.cv.width=this.cv.height=C;
-    this.ctx=this.cv.getContext('2d');
-    this.img=this.ctx.createImageData(C,C);
+    this.ctx=this.cv.getContext('2d'); this.img=this.ctx.createImageData(C,C);
     this.base=new Uint8ClampedArray(C*C*4);
-    const t=genTexture(this.type,this.seed); this.tex=t.tex; this.cloud=t.cloud;
-    const ct=Math.cos(this.tilt), st=Math.sin(this.tilt), ctr=C/2;
-    let bands=null, rc=0, rs=0;
-    if(this.ring){
-      const r=mulberry32(this.seed+5); bands=[]; for(let i=0;i<30;i++) bands.push(r());
-      bands[19]=.04; bands[20]=.06; // a gap
-      rc=Math.cos(this.ring.tilt); rs=Math.sin(this.ring.tilt);
-    }
+    const t=genTexture(this.type,this.seed,this.tex); this.tx=t.tex; this.cloud=t.cloud;
+    const ct=Math.cos(this.tilt),st=Math.sin(this.tilt),ctr=C/2;
+    let bands=null,rc=0,rs=0;
+    if(this.ring){const r=mulberry32(this.seed+5);bands=[];for(let i=0;i<30;i++)bands.push(r());bands[19]=.04;bands[20]=.06;rc=Math.cos(this.ring.tilt);rs=Math.sin(this.ring.tilt);}
     const idx=[],pu=[],pv=[],sh=[],rim=[];
-    const put=(i,c,a=255)=>{const o=i*4;this.base[o]=c[0];this.base[o+1]=c[1];this.base[o+2]=c[2];this.base[o+3]=a;};
+    const put=(i,c,a=255)=>{const k=i*4;this.base[k]=c[0];this.base[k+1]=c[1];this.base[k+2]=c[2];this.base[k+3]=a;};
     for(let y=0;y<C;y++) for(let x=0;x<C;x++){
-      const dx=(x+.5-ctr)/Rr, dy=(y+.5-ctr)/Rr, d2=dx*dx+dy*dy, b=BAYER[(y&3)*4+(x&3)], i=y*C+x;
+      const dx=(x+.5-ctr)/Rr,dy=(y+.5-ctr)/Rr,d2=dx*dx+dy*dy,b=BAYER[(y&3)*4+(x&3)],i=y*C+x;
       let front=false;
       if(this.ring){
-        const g=this.ring, rx=dx*rc+dy*rs, ry=-dx*rs+dy*rc, rr=Math.hypot(rx,ry/g.flat);
-        if(rr>g.in && rr<g.out){
-          const s=(rr-g.in)/(g.out-g.in), bv=bands[Math.min(29,Math.floor(s*30))];
-          const visible = bv>.12 && !(bv<.32 && b>.55);
-          if(visible){
-            // planet shadow falls on the far ring (behind, toward lower-right)
-            const shadowed = ry<0 ? false : (Math.hypot(dx-LIGHT[0]*-0.55, dy-LIGHT[1]*-0.55)<1 && ry>0 && d2>1);
-            const lit=(ry>0?1:.72)*(shadowed?.45:1)*(1-Math.abs(s-.45)*.35);
-            const c=[lerp(g.a[0],g.b[0],bv)*lit, lerp(g.a[1],g.b[1],bv)*lit, lerp(g.a[2],g.b[2],bv)*lit];
-            if(ry>0){ put(i,c); front=true; }
-            else if(d2>1){ put(i,c); }
+        const g=this.ring,rx=dx*rc+dy*rs,ry=-dx*rs+dy*rc,rr=Math.hypot(rx,ry/g.flat);
+        if(rr>g.in&&rr<g.out){
+          const s=(rr-g.in)/(g.out-g.in),bv=bands[Math.min(29,Math.floor(s*30))];
+          if(bv>.12&&!(bv<.32&&b>.55)){
+            const lit=(ry>0?1:.72)*(1-Math.abs(s-.45)*.35);
+            const c=[lerp(g.a[0],g.b[0],bv)*lit,lerp(g.a[1],g.b[1],bv)*lit,lerp(g.a[2],g.b[2],bv)*lit];
+            if(ry>0){put(i,c);front=true;} else if(d2>1) put(i,c);
           }
         }
       }
       if(d2<=1){
         if(front) continue;
-        const z=Math.sqrt(1-d2), qx=dx*ct+dy*st, qy=-dx*st+dy*ct;
-        const lat=Math.asin(clamp(-qy,-1,1)), lon=Math.atan2(qx,z);
-        idx.push(i);
-        pu.push(((lon/(Math.PI*2))+1)%1*TW);
-        pv.push(clamp(Math.floor((.5-lat/Math.PI)*TH),0,TH-1));
+        const z=Math.sqrt(1-d2),qx=dx*ct+dy*st,qy=-dx*st+dy*ct;
+        const lat=Math.asin(clamp(-qy,-1,1)),lon=Math.atan2(qx,z);
+        idx.push(i); pu.push(((lon/(Math.PI*2))+1)%1*TW); pv.push(clamp(Math.floor((.5-lat/Math.PI)*TH),0,TH-1));
         const dot=dx*LIGHT[0]+dy*LIGHT[1]+z*LIGHT[2];
-        const lv=clamp(dot*1.05+.16,0,1)*4.99+(b-.5)*.9;
-        sh.push(clamp(Math.floor(lv),0,4));
-        rim.push(this.atmo && d2>.78 && dot>-.05 ? (d2>.9?2:1) : 0);
-      } else if(this.atmo && !front){
+        sh.push(clamp(Math.floor(clamp(dot*1.05+.16,0,1)*4.99+(b-.5)*.9),0,4));
+        rim.push(this.atmo&&d2>.78&&dot>-.05?(d2>.9?2:1):0);
+      } else if(this.atmo&&!front){
         const d=Math.sqrt(d2);
         if(d<1+this.aw){
-          const side=(dx*LIGHT[0]+dy*LIGHT[1])/d*.5+.5;
-          const inten=(1-(d-1)/this.aw)*(.15+.85*side);
-          if(inten>b) put(i,this.atmo, inten>b+.35?255:150);
+          const side=(dx*LIGHT[0]+dy*LIGHT[1])/d*.5+.5, inten=(1-(d-1)/this.aw)*(.15+.85*side);
+          if(inten>b) put(i,this.atmo,inten>b+.35?255:150);
         }
       }
     }
-    this.idx=Int32Array.from(idx); this.pu=Float32Array.from(pu); this.pv=Uint8Array.from(pv);
-    this.sh=Uint8Array.from(sh); this.rim=Uint8Array.from(rim);
+    this.idx=Int32Array.from(idx);this.pu=Float32Array.from(pu);this.pv=Uint8Array.from(pv);this.sh=Uint8Array.from(sh);this.rim=Uint8Array.from(rim);
   }
   update(dt){
     this.rot=(this.rot+dt*this.speed*TW)%TW;
     const d=this.img.data; d.set(this.base);
-    const {idx,pu,pv,sh,rim,tex,cloud}=this, off=this.rot, coff=this.rot*1.4+40, A=this.atmo;
+    const {idx,pu,pv,sh,rim,tx,cloud}=this,off=this.rot,coff=this.rot*1.4+40,A=this.atmo;
     for(let k=0;k<idx.length;k++){
-      const ty=pv[k];
-      const tx=((pu[k]+off)%TW)|0, ti=(ty*TW+tx)*4;
-      let r=tex[ti],g=tex[ti+1],b=tex[ti+2]; const e=tex[ti+3];
-      let ca=0;
-      if(cloud){ ca=cloud[ty*TW+(((pu[k]+coff)%TW)|0)]; }
-      const lvl=sh[k], m=SHADE[lvl];
-      if(ca){ const f=ca/255; r=lerp(r,248,f); g=lerp(g,250,f); b=lerp(b,255,f); }
-      if(e===1 && ca<200){
-        const mm=.75+m*.25; r*=mm; g*=mm; b*=mm;
-      } else if(e===2 && lvl<=1 && !ca){
-        r=255; g=208; b=120;
-      } else {
-        const im=1-m; r=r*m+SHADOW_TINT[0]*im; g=g*m+SHADOW_TINT[1]*im; b=b*m+SHADOW_TINT[2]*im;
-      }
-      if(rim[k]&&A){ const f=rim[k]===2?.45:.22; r=lerp(r,A[0],f); g=lerp(g,A[1],f); b=lerp(b,A[2],f); }
-      const o=idx[k]*4; d[o]=r; d[o+1]=g; d[o+2]=b; d[o+3]=255;
+      const ty=pv[k],ti=(ty*TW+(((pu[k]+off)%TW)|0))*4;
+      let r=tx[ti],g=tx[ti+1],b=tx[ti+2];const e=tx[ti+3];
+      const ca=cloud?cloud[ty*TW+(((pu[k]+coff)%TW)|0)]:0, lvl=sh[k], m=SHADE[lvl];
+      if(ca){const f=ca/255;r=lerp(r,248,f);g=lerp(g,250,f);b=lerp(b,255,f);}
+      if(e===1&&ca<200){const mm=.75+m*.25;r*=mm;g*=mm;b*=mm;}
+      else if(e===2&&lvl<=1&&!ca){r=255;g=208;b=120;}
+      else{const im=1-m;r=r*m+SHADOW_TINT[0]*im;g=g*m+SHADOW_TINT[1]*im;b=b*m+SHADOW_TINT[2]*im;}
+      if(rim[k]&&A){const f=rim[k]===2?.45:.22;r=lerp(r,A[0],f);g=lerp(g,A[1],f);b=lerp(b,A[2],f);}
+      const o=idx[k]*4;d[o]=r;d[o+1]=g;d[o+2]=b;d[o+3]=255;
     }
     this.ctx.putImageData(this.img,0,0);
   }
 }
 
 /* =========================================================
-   BACKGROUND SCENE
+   SPRITES  (character maps → small canvases)
    ========================================================= */
-const cv=document.getElementById('bg'), ctx=cv.getContext('2d');
-let W=0,H=0,DPR=1,U=3;
-let stars=[], nebula=null, warpStars=[], shooting=[];
-const mouse={x:0,y:0,sx:0,sy:0};
-let warp=0, warpTarget=0, warpHold=0, drift=0, shootTimer=3;
-
-const planets=[
-  new Planet({key:'giant', type:'gas', seed:11, size:124, speed:.007, tilt:-.32, depth:.55,
-              ring:{in:1.28,out:2.2,flat:.28,tilt:-.32,a:[150,120,96],b:[236,214,176]}}),
-  new Planet({key:'terra', type:'terran', seed:4, size:72, speed:.014, tilt:.38, depth:.32, atmo:[120,190,255], aw:.16}),
-  new Planet({key:'moon', type:'rocky', seed:23, size:18, speed:.03, depth:.32}),
-  new Planet({key:'lava', type:'lava', seed:31, size:32, speed:.022, tilt:.2, depth:.2, atmo:[255,120,60], aw:.18}),
-  new Planet({key:'alien', type:'alien', seed:57, size:44, speed:.018, tilt:-.5, depth:.24, atmo:[236,120,255], aw:.15}),
-  new Planet({key:'ice', type:'ice', seed:77, size:24, speed:.02, depth:.14, atmo:[190,236,255], aw:.2}),
-  new Planet({key:'dune', type:'desert', seed:91, size:12, speed:.03, depth:.07}),
-];
-const P=Object.fromEntries(planets.map(p=>[p.key,p]));
-let layout={};
-function computeLayout(){
-  const narrow=W<760;
-  layout = narrow ? {
-    giant:[.92,.93], terra:[.12,.17], lava:[.9,.26], alien:[.74,.2], ice:[.1,.88], dune:[.45,.97]
-  } : {
-    giant:[.87,.8], terra:[.12,.3], lava:[.91,.17], alien:[.66,.15], ice:[.27,.9], dune:[.47,.95]
-  };
+function sprite(rows,cols){
+  const h=rows.length,w=rows[0].length,c=document.createElement('canvas');c.width=w;c.height=h;
+  const g=c.getContext('2d');
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const ch=rows[y][x];if(ch==='.'||!cols[ch])continue;g.fillStyle=typeof cols[ch]==='function'?cols[ch](x,y):cols[ch];g.fillRect(x,y,1,1);}
+  return c;
 }
+const ROCKET=sprite([
+  ".....rr.....",
+  "....rrrr....",
+  "...rrrrrr...",
+  "...wwwwww...",
+  "..wwwwwwww..",
+  "..wwwkkwww..",
+  "..wwkcckww..",
+  "..wwkcckww..",
+  "..wwwkkwww..",
+  "..wwwwwwww..",
+  "..wwwwwwww..",
+  "..gggggggg..",
+  "..wwwwwwww..",
+  "..wwwwwwww..",
+  "..wwwwwwww..",
+  "..wwwwwwww..",
+  ".rwwwwwwwwr.",
+  "rrwwwwwwwwrr",
+  "rr.nnnnnn.rr",
+  "r...nnnn...r",
+],{
+  r:(x)=>x<6?'#ff6b7f':'#d8435c',
+  w:(x)=>x<5?'#f4f6ff':x<8?'#d9ddf2':'#a6addb',
+  k:'#5a6390', c:(x,y)=>y===6&&x===5?'#e6fff9':'#7cf7d4', g:'#ffcf5a',
+  n:(x)=>x<6?'#6b7299':'#474d70',
+});
+const SAT=sprite([
+  "bbbb.....bbbb",
+  "BBBB..a..BBBB",
+  "bbbbsgggsbbbb",
+  "BBBB.ggg.BBBB",
+  "bbbb.....bbbb",
+],{b:'#3b5bdb',B:'#6d8cff',a:'#ffffff',s:'#9aa3c7',g:'#e8b84a'});
+const STATION=(()=>{
+  const w=40,h=13,rows=[];
+  for(let y=0;y<h;y++){let r='';for(let x=0;x<w;x++){
+    let ch='.';
+    if(y===6) ch='t';
+    const panel=[1,6,30,35].some(p=>x>=p&&x<p+4);
+    if(panel&&y!==6) ch=(y%2?'B':'b');
+    if(x>=14&&x<26&&y>=4&&y<=8) ch=(y===4?'W':y===8?'D':'w');
+    if(x>=18&&x<22&&y>=2&&y<=10) ch=(y===2?'W':y===10?'D':'w');
+    if((x===16||x===23)&&y===6) ch='k';
+    r+=ch;} rows.push(r);}
+  return sprite(rows,{t:'#9aa3c7',b:'#3b5bdb',B:'#6d8cff',w:'#d9ddf2',W:'#ffffff',D:'#8a93c9',k:'#5a6390'});
+})();
+const PLANE=sprite([
+  ".ww.............",
+  ".www............",
+  "wwwwwwwwwwwwwww.",
+  "wbwbwbwbwbwbwwwk",
+  "wwwwwwwwwwwwwww.",
+  ".......wwww.....",
+  "........ww......",
+],{w:'#f4f6ff',b:'#4a6fd8',k:'#5a6390'});
+const BIRD=[sprite(["x...x",".x.x.","..x.."],{x:'#26304f'}),sprite([".....","xx.xx","..x.."],{x:'#26304f'})];
+const BALLOON=sprite([
+  "..rryyr..",
+  ".ryyrryy.",
+  "ryyrryyrr",
+  "ryyrryyrr",
+  "ryyrryyrr",
+  ".ryyrryy.",
+  "..ryyrr..",
+  "...l.l...",
+  "...l.l...",
+  "...bbb...",
+  "...bbb...",
+],{r:'#ff6b7f',y:'#ffcf5a',l:'#5a6390',b:'#8a5a3a'});
+
+/* =========================================================
+   SCENE
+   ========================================================= */
+const cv=document.getElementById('scene'),ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1,U=3,RU=4,PPP=30;           // U: art pixel size, RU: rocket pixel size, PPP: screen px per point
+let sceneCX=0,sceneL=0,sceneR=0,baseY=0,tCX=0,tBaseY=0;
+let cam=0,vel=0,thrust=0,thrustTarget=0,fly=null,shake=0;
+let stars=[],particles=[],speedLines=[],clouds=[],birds=[],asteroids=[];
+let layers={},nebula=null,galaxy=null;
+
+const planets={
+  earth:  new Planet({type:'terran',seed:4,size:220,speed:.006,tilt:.32,atmo:[120,190,255],aw:.07}),
+  moon:   new Planet({type:'rocky',seed:23,size:70,speed:.012}),
+  mars:   new Planet({type:'mars',seed:61,size:56,speed:.016,tilt:.2,atmo:[255,170,130],aw:.1}),
+  jupiter:new Planet({type:'gas',seed:11,size:118,speed:.01,tilt:.05,tex:{pal:PAL.jupiter,storm:{lon:1.1,lat:-.36,w:.34,h:.13,cols:[[196,86,58],[222,126,80],[244,206,166]]}}}),
+  saturn: new Planet({type:'gas',seed:13,size:84,speed:.011,tilt:-.3,tex:{pal:PAL.saturn,bands:4,turb:1.1},ring:{in:1.3,out:2.25,flat:.3,tilt:-.3,a:[160,140,110],b:[240,226,190]}}),
+  neptune:new Planet({type:'gas',seed:17,size:64,speed:.014,tilt:.4,atmo:[140,190,255],aw:.12,tex:{pal:PAL.neptune,bands:3.5,turb:2,storm:{lon:2,lat:-.4,w:.3,h:.12,cols:[[24,34,110],[36,52,140],[90,130,230]]}}}),
+};
+const rocks=[0,1,2,3].map(i=>new Planet({type:'rocky',seed:200+i,size:9+i*3,speed:.06+i*.02}));
+// world placement: x as fraction of scene half-width (negative = left), y in points
+const PLACE={moon:[.55,300],mars:[-.6,400],jupiter:[.6,505],saturn:[-.5,572],neptune:[.55,636]};
 
 function buildStars(){
-  const R=mulberry32(1234), n=Math.round(W*H/2200);
+  const R=mulberry32(77),n=Math.round(W*H/1800);
   const cols=['#ffffff','#cfe0ff','#ffe9c4','#ffd1e8','#c9fff1'];
   stars=[];
-  for(let i=0;i<n;i++){
-    const big=R()<.05;
-    stars.push({x:R()*W,y:R()*H,s:big?2:R()<.3?1.5:1,c:cols[(R()*cols.length)|0],ph:R()*6.28,sp:.6+R()*2.2,a:.35+R()*.65,dp:.02+R()*.12,big});
-  }
-  warpStars=[];
-  for(let i=0;i<260;i++) warpStars.push(newWarp(R,true));
+  for(let i=0;i<n;i++) stars.push({x:R()*W,y:R()*H,s:R()<.06?2:R()<.3?1.5:1,c:cols[(R()*cols.length)|0],ph:R()*6.28,sp:.6+R()*2.2,a:.35+R()*.65,dp:.03+R()*.18,big:R()<.05});
 }
-function newWarp(R=Math.random,init=false){return {x:(R()*2-1),y:(R()*2-1),z:init?R():1,pz:0};}
-
+function buildWorld(){
+  const R=mulberry32(5);
+  clouds=[];
+  for(let i=0;i<34;i++){
+    const wy=8+R()*92, w=40+R()*60|0, h=16+R()*14|0;
+    clouds.push({x:R(),wy,spr:makeCloud(w,h,(R()*1e6)|0, wy),sp:(R()<.5?-1:1)*(.004+R()*.01)});
+  }
+  birds=[];
+  for(let i=0;i<4;i++){const f=[];const n=4+(R()*4|0);for(let k=0;k<n;k++)f.push([-k*7*(k%2?1:1),Math.abs(k-n/2)*4]);birds.push({x:R(),wy:6+R()*26,sp:.03+R()*.03,f,ph:R()*6});}
+  asteroids=[];
+  for(let i=0;i<46;i++) asteroids.push({x:R()*2-1,wy:430+R()*44,r:rocks[(R()*4)|0],sc:.7+R()*.9,sp:(R()-.5)*.02});
+}
+function makeCloud(w,h,seed,wy){
+  const R=mulberry32(seed),c=document.createElement('canvas');c.width=w;c.height=h+2;
+  const g=c.getContext('2d'),im=g.createImageData(w,h+2),blobs=[];
+  const n=4+(R()*4|0);
+  for(let i=0;i<n;i++){const t=(i+.5)/n;blobs.push([t*w*.86+w*.07,h*.6-R()*h*.22,(h*.36+R()*h*.32)*(1-Math.abs(t-.5)*.7)]);}
+  const high=wy>60;
+  for(let y=0;y<h+2;y++)for(let x=0;x<w;x++){
+    let inside=0;for(const b of blobs){const d=Math.hypot(x-b[0],(y-b[1])*1.15)/b[2];if(d<1)inside=Math.max(inside,1-d);}
+    if(y>h*.78) inside=0;
+    if(!inside) continue;
+    const shadeY=y/h, b=BAYER[(y&3)*4+(x&3)];
+    let col= shadeY<.35?[255,255,255]: shadeY<.55+b*.1?[232,238,252]:[194,206,236];
+    if(high) col=col.map((v,i)=>v*[.9,.92,1][i]);
+    const o=(y*w+x)*4;im.data[o]=col[0];im.data[o+1]=col[1];im.data[o+2]=col[2];im.data[o+3]=inside<.08&&b>.5?0:255;
+  }
+  g.putImageData(im,0,0);return c;
+}
+function buildLayers(){
+  const aw=Math.ceil(W/U)+4,N=makeNoise(31),R=mulberry32(9);
+  const mk=(h)=>{const c=document.createElement('canvas');c.width=aw;c.height=h;return [c,c.getContext('2d')];};
+  // distant mountains
+  {const h=70,[c,g]=mk(h);const im=g.createImageData(aw,h);
+   for(let x=0;x<aw;x++){const top=h-(18+N(x*.025,1,1,4)*70);for(let y=Math.max(0,top|0);y<h;y++){
+     const b=BAYER[(y&3)*4+(x&3)],o=(y*aw+x)*4,depth=(y-top);
+     let col= depth<4&&top<h-46?[230,238,255]: depth<8+b*4?[118,146,196]:[92,118,170];
+     im.data[o]=col[0];im.data[o+1]=col[1];im.data[o+2]=col[2];im.data[o+3]=255;}}
+   g.putImageData(im,0,0);layers.mtn=c;}
+  // city skyline
+  {const h=40,[c,g]=mk(h);let x=0;
+   while(x<aw){const bw=4+(R()*9|0),bh=8+(R()*28|0);g.fillStyle=R()<.5?'#3d4f86':'#344577';g.fillRect(x,h-bh,bw,bh);
+     for(let wy=h-bh+2;wy<h-2;wy+=3)for(let wx=x+1;wx<x+bw-1;wx+=2)if(R()<.35){g.fillStyle=R()<.7?'#ffe08a':'#9fd8ff';g.fillRect(wx,wy,1,1);}
+     if(R()<.15){g.fillStyle='#ff6b7f';g.fillRect(x+(bw>>1),h-bh-2,1,2);}
+     x+=bw+(R()<.3?2:0);}
+   layers.city=c;}
+  // hills with trees
+  {const h=34,[c,g]=mk(h);const im=g.createImageData(aw,h);const tops=[];
+   for(let x=0;x<aw;x++){const top=h-(10+N(x*.03,5,2,3)*24);tops.push(top);
+     for(let y=Math.max(0,top|0);y<h;y++){const b=BAYER[(y&3)*4+(x&3)],o=(y*aw+x)*4,dd=y-top;
+       const col=dd<2?[120,200,96]:dd<5+b*3?[78,160,74]:[56,128,62];
+       im.data[o]=col[0];im.data[o+1]=col[1];im.data[o+2]=col[2];im.data[o+3]=255;}}
+   g.putImageData(im,0,0);
+   for(let x=3;x<aw-3;x+=3+(R()*6|0)){const t=tops[x]|0;g.fillStyle='#2f7a4a';g.fillRect(x-1,t-5,3,4);g.fillRect(x-2,t-3,5,2);g.fillStyle='#3f9a5a';g.fillRect(x-1,t-5,1,2);g.fillStyle='#5a3a2a';g.fillRect(x,t-1,1,2);}
+   layers.hills=c;}
+  // ground: grass + soil
+  {const h=90,[c,g]=mk(h);const im=g.createImageData(aw,h);
+   for(let y=0;y<h;y++)for(let x=0;x<aw;x++){const b=BAYER[(y&3)*4+(x&3)],o=(y*aw+x)*4;
+     let col= y<2?[150,226,110]: y<5?[96,184,80]: y<7+b*2?[70,150,64]: y<30?(N(x*.2,y*.2,9,2)>.55?[126,86,62]:[104,70,52]):[78,52,42];
+     if(y>8&&R()<.012) col=[150,140,130];
+     im.data[o]=col[0];im.data[o+1]=col[1];im.data[o+2]=col[2];im.data[o+3]=255;}
+   g.putImageData(im,0,0);layers.ground=c;}
+}
 function buildNebula(){
-  const s=U*2, w=Math.ceil(W/s)+2, h=Math.ceil(H/s)+2;
-  const c=document.createElement('canvas'); c.width=w; c.height=h;
-  const g=c.getContext('2d'), im=g.createImageData(w,h), N=makeNoise(808), N2=makeNoise(909);
-  const sc=3.2/Math.max(w,h);
-  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
-    const n=N(x*sc,y*sc,.5,5), m=N2(x*sc*1.6,y*sc*1.6,2,4);
-    const band=1-Math.abs((y/h)-(.25+.55*(x/w)))*2.2; // diagonal milky band
-    let v=(n-.42)*3.2+band*.5;
-    const b=BAYER[(y&3)*4+(x&3)];
-    const lvl=clamp(Math.floor(v*4+(b-.5)*1.1),0,4);
-    if(lvl<=0) continue;
-    const o=(y*w+x)*4;
-    const mix=clamp((m-.38)*3,0,1);
-    const A=[60,34,120],B=[140,46,120],C=[28,60,130];
-    const base=mix<.5?A.map((a,i)=>lerp(C[i],a,mix*2)):A.map((a,i)=>lerp(a,B[i],(mix-.5)*2));
-    im.data[o]=base[0]; im.data[o+1]=base[1]; im.data[o+2]=base[2]; im.data[o+3]=[0,38,62,88,112][lvl];
+  const w=200,h=120,c=document.createElement('canvas');c.width=w;c.height=h;
+  const g=c.getContext('2d'),im=g.createImageData(w,h),N=makeNoise(808),N2=makeNoise(909);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const dx=(x-w/2)/(w/2),dy=(y-h/2)/(h/2),fall=1-Math.min(1,dx*dx+dy*dy);
+    const n=N(x*.02,y*.02,.5,5),m=N2(x*.03,y*.03,2,4),b=BAYER[(y&3)*4+(x&3)];
+    const lvl=clamp(Math.floor(((n-.38)*3.2*fall+fall*.3)*5+(b-.5)*1.1),0,4);
+    if(lvl<=0)continue;
+    const o=(y*w+x)*4,mix=clamp((m-.38)*3,0,1);
+    const A=[90,40,150],B=[200,70,150],C=[40,90,180];
+    const col=mix<.5?A.map((a,i)=>lerp(C[i],a,mix*2)):A.map((a,i)=>lerp(a,B[i],(mix-.5)*2));
+    im.data[o]=col[0];im.data[o+1]=col[1];im.data[o+2]=col[2];im.data[o+3]=[0,50,90,130,170][lvl];
   }
-  g.putImageData(im,0,0);
-  nebula={c,s};
+  g.putImageData(im,0,0);nebula=c;
+  // spiral galaxy
+  const gw=60,gc=document.createElement('canvas');gc.width=gc.height=gw;const gg=gc.getContext('2d'),R=mulberry32(3);
+  for(let i=0;i<900;i++){const arm=i%2,t=R()*3.4,a=t*2.1+arm*Math.PI+(R()-.5)*.5,r=t*7+R()*2;
+    const x=gw/2+Math.cos(a)*r,y=gw/2+Math.sin(a)*r*.55;gg.fillStyle=t<.6?'#fff6dd':R()<.5?'#b9c8ff':'#e0b8ff';gg.globalAlpha=1-t/3.6;gg.fillRect(x|0,y|0,1,1);}
+  galaxy=gc;
 }
-
+function measure(){
+  const panel=document.getElementById('panel').getBoundingClientRect();
+  const side=W>860;
+  if(side){ sceneL=0; sceneR=panel.left-8; tCX=sceneR/2+20; tBaseY=H*.72; }
+  else { sceneL=0; sceneR=W; tCX=W/2; tBaseY=Math.max(150,(panel.top)*.8); }
+}
 function resize(){
-  DPR=Math.min(window.devicePixelRatio||1,2);
-  W=window.innerWidth; H=window.innerHeight;
-  cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
-  ctx.setTransform(DPR,0,0,DPR,0,0); ctx.imageSmoothingEnabled=false;
-  U=clamp(Math.round(Math.min(W,H)/280),2,5);
-  computeLayout(); buildStars(); buildNebula(); placeShip();
+  DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
+  cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0);ctx.imageSmoothingEnabled=false;
+  U=clamp(Math.round(Math.min(W,H)/300),2,4); RU=Math.round(U*1.5); PPP=H/26;
+  measure(); sceneCX=tCX; baseY=tBaseY;
+  buildStars(); buildLayers();
+}
+const wy2sy=wy=>baseY-(wy-cam)*PPP;
+function onScreen(sy,half){return sy+half>-20&&sy-half<H+20;}
+function draw(img,x,y,s){ctx.drawImage(img,Math.round(x),Math.round(y),img.width*s,img.height*s);}
+function drawCentered(img,x,y,s){draw(img,x-img.width*s/2,y-img.height*s/2,s);}
+
+const SKY=[[0,[132,200,255]],[30,[96,166,246]],[70,[62,112,214]],[110,[38,52,150]],[140,[22,22,84]],[165,[9,8,34]],[200,[5,4,13]]];
+function skyAt(a){
+  if(a<=SKY[0][0]) return SKY[0][1];
+  for(let i=1;i<SKY.length;i++) if(a<=SKY[i][0]){const t=(a-SKY[i-1][0])/(SKY[i][0]-SKY[i-1][0]);return SKY[i-1][1].map((v,k)=>lerp(v,SKY[i][1][k],t));}
+  return SKY[SKY.length-1][1];
 }
 
-function planetScreen(p, t){
-  const [fx,fy]=layout[p.key];
-  const px=mouse.sx*p.depth*46, py=mouse.sy*p.depth*30;
-  const bob=Math.sin(t*.25+p.seed)*3*p.depth*U;
-  return [fx*W+px - drift*p.depth*0, fy*H+py+bob];
+function emit(dt){
+  const nozX=sceneCX, nozY=cam - 0;           // world y of rocket base = cam
+  const rate=thrust*(fly?90:26)*dt;
+  let n=Math.floor(rate)+(Math.random()<rate%1?1:0);
+  const inAir=cam<150;
+  while(n--){
+    const smoke=inAir&&Math.random()<.7;
+    particles.push({x:nozX+(Math.random()-.5)*RU*4,wy:nozY-(RU*2+Math.random()*RU*6)/PPP,
+      vx:(Math.random()-.5)*(smoke?40:60),vy:-(smoke?1.5:3)-Math.random()*2,life:0,max:smoke?1.6+Math.random()*1.4:.45+Math.random()*.3,smoke,s:smoke?RU*(1+Math.random()):RU*.75});
+  }
 }
-function drawPlanet(p,x,y){
-  const s=p.C*U;
-  ctx.drawImage(p.cv, x-s/2, y-s/2, s, s);
-}
+function frame(t,dt){
+  // layout follow (smooth when the panel changes size)
+  const k=1-Math.exp(-dt*6); sceneCX+=(tCX-sceneCX)*k; baseY+=(tBaseY-baseY)*k;
 
-function frame(t, dt){
-  // smooth inputs
-  const k=1-Math.exp(-dt*3);
-  mouse.sx+= (mouse.x-mouse.sx)*k; mouse.sy+=(mouse.y-mouse.sy)*k;
-  if(warpHold>0) warpHold-=dt; else warpTarget=0;
-  const wk=1-Math.exp(-dt*(warpTarget>warp?4:1.6));
-  warp+=(warpTarget-warp)*wk;
-  drift+=dt*(6+warp*260);
+  // flight
+  const prev=cam;
+  if(fly){
+    if(t<fly.t0){ thrustTarget=1; shake=Math.min(1,shake+dt*2); }
+    else{
+      const p=clamp((t-fly.t0)/fly.dur,0,1); cam=lerp(fly.from,fly.to,easeInOut(p)); thrustTarget=1-p*.5; shake=Math.max(0,shake-dt*1.5);
+      if(p>=1){fly=null; if(fly===null&&onLanded) {const f=onLanded;onLanded=null;f();}}
+    }
+  } else { thrustTarget=cam>.1?.3:0; shake=Math.max(0,shake-dt*2); }
+  vel=(cam-prev)/Math.max(dt,1e-3);
+  thrust+=(thrustTarget-thrust)*(1-Math.exp(-dt*5));
 
-  ctx.fillStyle='#05040d'; ctx.fillRect(0,0,W,H);
-  // deep gradient glow
-  const gr=ctx.createRadialGradient(W*.7,H*.25,0,W*.7,H*.25,Math.max(W,H)*.8);
-  gr.addColorStop(0,'rgba(40,20,80,.35)'); gr.addColorStop(1,'rgba(5,4,13,0)');
-  ctx.fillStyle=gr; ctx.fillRect(0,0,W,H);
-
-  // nebula
-  if(nebula){
-    const ox=mouse.sx*-10 - (drift*.02)%(nebula.s), oy=mouse.sy*-8;
-    ctx.globalAlpha=.9;
-    ctx.drawImage(nebula.c, ox-nebula.s, oy-nebula.s, nebula.c.width*nebula.s, nebula.c.height*nebula.s);
+  // sky: banded vertical gradient by world altitude
+  const band=U*3;
+  for(let y=0;y<H;y+=band){
+    const a=cam+(baseY-y)/PPP, c=skyAt(a);
+    ctx.fillStyle=`rgb(${c[0]|0},${c[1]|0},${c[2]|0})`; ctx.fillRect(0,y,W,band+1);
+  }
+  // stars fade in with altitude
+  const sa=smooth(105,175,cam);
+  if(sa>0){
+    for(const s of stars){
+      let y=(s.y+cam*PPP*s.dp)%H; const x=s.x;
+      const tw=.55+.45*Math.sin(t*s.sp+s.ph);
+      ctx.globalAlpha=s.a*tw*sa; ctx.fillStyle=s.c; const z=s.s*(U>2?1.5:1);
+      ctx.fillRect(x,y,z,z);
+      if(s.big&&tw>.8){ctx.globalAlpha=(tw-.8)*3*s.a*sa;ctx.fillRect(x-z*2,y,z,z);ctx.fillRect(x+z*2,y,z,z);ctx.fillRect(x,y-z*2,z,z);ctx.fillRect(x,y+z*2,z,z);}
+    }
     ctx.globalAlpha=1;
   }
+  const half=(sceneR-sceneL)/2;
 
-  // static stars with twinkle + slow parallax drift
-  for(const s of stars){
-    let x=(s.x - drift*s.dp*4 + mouse.sx*-s.dp*120)%W; if(x<0)x+=W;
-    const y=s.y + mouse.sy*-s.dp*80;
-    const tw=.55+.45*Math.sin(t*s.sp+s.ph);
-    ctx.globalAlpha=s.a*tw*(1-warp*.5);
-    ctx.fillStyle=s.c;
-    const z=s.s*(U>2?1.5:1);
-    ctx.fillRect(x,y,z,z);
-    if(s.big && tw>.8){
-      ctx.globalAlpha=(tw-.8)*3*s.a;
-      ctx.fillRect(x-z*2,y,z,z); ctx.fillRect(x+z*2,y,z,z); ctx.fillRect(x,y-z*2,z,z); ctx.fillRect(x,y+z*2,z,z);
-    }
+  // deep-space backdrop: nebula + galaxy
+  {const sy=wy2sy(708),s=U*2.4;if(onScreen(sy,nebula.height*s/2)){ctx.globalAlpha=.95;drawCentered(nebula,sceneCX,sy,s);ctx.globalAlpha=1;}}
+  {const sy=wy2sy(684),s=U*1.4;if(onScreen(sy,galaxy.height*s)){drawCentered(galaxy,sceneCX-half*.55,sy,s);}}
+
+  // Earth from orbit
+  {const ea=smooth(172,192,cam);
+   if(ea>0){const p=planets.earth,s=Math.max(U,(Math.max(half*2,H)*1.5)/p.size),r=p.size*s/2,sy=baseY+RU*8+Math.max(0,cam-192)*PPP*.12+r;
+     if(onScreen(sy,r)){p.update(dt);ctx.globalAlpha=ea;drawCentered(p.cv,sceneCX,sy,s);ctx.globalAlpha=1;}}}
+
+  // planets
+  for(const key in PLACE){
+    const p=planets[key],[fx,wy]=PLACE[key],sy=wy2sy(wy),s=U;
+    if(!onScreen(sy,p.C*s/2)) continue;
+    p.update(dt); drawCentered(p.cv,sceneCX+fx*half,sy+Math.sin(t*.3+wy)*U*2,s);
+  }
+  // asteroid belt
+  if(onScreen(wy2sy(452),26*PPP)){
+    for(const r of rocks) r.update(dt);
+    for(const a of asteroids){const sy=wy2sy(a.wy);if(!onScreen(sy,40))continue;
+      a.x+=a.sp*dt; if(a.x>1.1)a.x=-1.1; if(a.x<-1.1)a.x=1.1;
+      drawCentered(a.r.cv,sceneCX+a.x*half,sy,Math.max(1,Math.round(U*a.sc)));}
+  }
+  // satellites + station
+  for(let i=0;i<5;i++){
+    const wy=222+i*13, sy=wy2sy(wy); if(!onScreen(sy,40)) continue;
+    const x=((t*(.02+i*.007)+i*.37)%1.4-.2);
+    if(i===2) drawCentered(STATION,sceneL+x*(sceneR-sceneL),sy,U*1.5);
+    else drawCentered(SAT,sceneL+(1-x)*(sceneR-sceneL),sy+Math.sin(t+i)*U,U*1.5);
+  }
+  // aurora
+  {const top=wy2sy(150),bot=wy2sy(122);
+   if(bot>-10&&top<H+10){
+     const cw=U*2;
+     for(let x=sceneL;x<sceneR;x+=cw*1.5){
+       const h=(Math.sin(x*.012+t*.7)+Math.sin(x*.031-t*.45)+2)/4, f=.35+.65*(Math.sin(x*.02+t*.3)*.5+.5);
+       const y0=lerp(top,bot,.25*(1-h)), y1=bot;
+       const segs=6;for(let s=0;s<segs;s++){const yy=lerp(y0,y1,s/segs),hh=(y1-y0)/segs+1;
+         ctx.globalAlpha=f*Math.sin(Math.PI*s/segs)*.55; ctx.fillStyle=s<2?'#d49bff':'#6dffb8'; ctx.fillRect(x,yy,cw,hh);}
+     }
+     ctx.globalAlpha=1;
+   }}
+  // weather balloon / hot-air balloon
+  {const sy=wy2sy(74);if(onScreen(sy,40))drawCentered(BALLOON,sceneCX-half*.55,sy+Math.sin(t*.8)*U*2,U*1.5);}
+  // plane with contrail
+  {const sy=wy2sy(30);if(onScreen(sy,30)){const x=sceneL-60+((t*.06)%1.3)*((sceneR-sceneL)+120);
+     ctx.fillStyle='rgba(255,255,255,.55)';for(let i=1;i<40;i++){ctx.globalAlpha=(1-i/40)*.6;ctx.fillRect(x-i*U*3-8*U,sy+U,U*2,U);}
+     ctx.globalAlpha=1;drawCentered(PLANE,x,sy,U);}}
+  // birds
+  for(const b of birds){const sy=wy2sy(b.wy);if(!onScreen(sy,30))continue;
+    b.x=(b.x+b.sp*dt)%1.2;const bx=sceneL+(b.x-.1)*(sceneR-sceneL);
+    for(let i=0;i<b.f.length;i++){const fr=BIRD[((t*6+i+b.ph)|0)%2];draw(fr,bx+b.f[i][0]*U,sy+b.f[i][1]*U,U);}}
+  // clouds
+  for(const c of clouds){const sy=wy2sy(c.wy);if(!onScreen(sy,60))continue;
+    c.x+=c.sp*dt;if(c.x>1.25)c.x=-.25;if(c.x<-.25)c.x=1.25;
+    draw(c.spr,sceneL+c.x*(sceneR-sceneL)-c.spr.width*U/2,sy-c.spr.height*U,U);}
+
+  // ground layers (parallax: far layers scroll slower)
+  const gy=wy2sy(0);
+  if(gy<H+400){
+    const ly=(f,img)=>{const y=baseY+cam*PPP*f;if(y-img.height*U<H)draw(img,-U*2,y-img.height*U,U);return y;};
+    ly(.45,layers.mtn); ly(.65,layers.city); ly(.85,layers.hills);
+    draw(layers.ground,-U*2,gy,U);
+    // launch pad + tower
+    const px=sceneCX;
+    ctx.fillStyle='#6b7299';ctx.fillRect(px-RU*9,gy-RU,RU*18,RU);
+    ctx.fillStyle='#8a93c9';ctx.fillRect(px-RU*9,gy-RU,RU*18,RU*.5);
+    const tx=px-RU*12, th=RU*30;
+    ctx.fillStyle='#c94a5a';ctx.fillRect(tx,gy-th,RU*2,th);ctx.fillRect(tx+RU*3,gy-th,RU*1,th);
+    for(let y=gy-th;y<gy;y+=RU*3){ctx.fillRect(tx,y,RU*4,RU*.5);}
+    ctx.fillStyle='#ffcf5a';ctx.fillRect(tx,gy-th-RU,RU*1,RU);
+    if(cam<1.5){ctx.fillStyle='#9aa3c7';ctx.fillRect(tx+RU*4,gy-RU*14,RU*4*(1-smooth(0,1,cam)),RU);}
+  }
+
+  // Kármán line
+  {const sy=wy2sy(160);if(onScreen(sy,10)){ctx.fillStyle='rgba(124,247,212,.55)';for(let x=sceneL;x<sceneR;x+=U*6)ctx.fillRect(x,sy,U*3,Math.max(1,U*.5));}}
+
+  // exhaust particles (world space, so they trail behind)
+  emit(dt);
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];p.life+=dt;if(p.life>p.max){particles.splice(i,1);continue;}
+    p.x+=p.vx*dt;p.wy+=p.vy*dt;p.vx*=.98;p.vy*=.97;
+    const f=p.life/p.max,sy=wy2sy(p.wy);if(sy>H+40)continue;
+    if(p.smoke){const s=p.s*(1+f*3);ctx.globalAlpha=(1-f)*.55;ctx.fillStyle=f<.15?'#ffd27a':'#e8ebf7';ctx.fillRect(p.x-s/2,sy-s/2,s,s);}
+    else{ctx.globalAlpha=1-f;ctx.fillStyle=f<.3?'#fff2b0':f<.6?'#ffab4a':'#ff5d5d';ctx.fillRect(p.x-p.s/2,sy,p.s,p.s);}
   }
   ctx.globalAlpha=1;
 
-  // shooting stars
-  shootTimer-=dt;
-  if(shootTimer<=0 && !REDUCED){ shootTimer=4+Math.random()*7;
-    shooting.push({x:Math.random()*W*.8+W*.1,y:Math.random()*H*.4,vx:(Math.random()<.5?-1:1)*(380+Math.random()*260),vy:160+Math.random()*120,life:0,max:.9+Math.random()*.5}); }
-  for(let i=shooting.length-1;i>=0;i--){
-    const s=shooting[i]; s.life+=dt; if(s.life>s.max){shooting.splice(i,1);continue;}
-    s.x+=s.vx*dt; s.y+=s.vy*dt;
-    const f=Math.sin(Math.PI*s.life/s.max), z=U*.75;
-    for(let j=0;j<14;j++){
-      ctx.globalAlpha=f*(1-j/14)*.9; ctx.fillStyle=j<2?'#fff':'#bfe9ff';
-      ctx.fillRect(s.x-s.vx*j*.008, s.y-s.vy*j*.008, z, z);
+  // speed lines while climbing
+  const spd=clamp(vel/120,0,1);
+  if(spd>.02&&!REDUCED){
+    if(speedLines.length<60) speedLines.push({x:sceneL+Math.random()*(sceneR-sceneL),y:-50,l:20+Math.random()*90,v:.8+Math.random()*.8});
+    ctx.fillStyle=cam>150?'rgba(200,220,255,1)':'rgba(255,255,255,1)';
+    for(const s of speedLines){s.y+=s.v*vel*PPP*dt*.9;ctx.globalAlpha=spd*.45;ctx.fillRect(s.x,s.y,Math.max(1,U*.5),s.l*spd);}
+    speedLines=speedLines.filter(s=>s.y<H);
+    ctx.globalAlpha=1;
+  } else speedLines.length=0;
+
+  // rocket
+  const sx=Math.round(sceneCX+(Math.random()-.5)*shake*RU*.8), bob=cam>.1&&!fly?Math.sin(t*1.6)*RU*.6:0;
+  const by=Math.round(baseY-RU*0+bob);
+  // flame
+  if(thrust>.04){
+    const L=Math.round((4+thrust*14+Math.sin(t*40)*1.2)), fp=Math.max(1,RU/2|0);
+    for(let r=0;r<L*2;r++){
+      const f=r/(L*2), w=Math.max(1,Math.round((1-f)*7+Math.random()*1.5));
+      ctx.fillStyle=f<.2?'#fffbe0':f<.45?'#ffd25a':f<.75?'#ff8a3a':'#ff4d5d';
+      ctx.globalAlpha=1-f*.6;
+      ctx.fillRect(sx-w*fp,by+RU*0+r*fp,w*fp*2,fp);
     }
+    ctx.globalAlpha=1;
   }
-  ctx.globalAlpha=1;
+  draw(ROCKET,sx-ROCKET.width*RU/2,by-ROCKET.height*RU+RU*2,RU);
 
-  // planets (back to front)
-  for(const p of planets) if(p.key!=='moon') p.update(dt);
-  P.moon.update(dt);
-  const order=['dune','ice','lava','alien','terra','giant'];
-  const ang=t*.16;
-  for(const key of order){
-    const p=P[key];
-    const [x,y]=planetScreen(p,t);
-    if(key==='terra'){
-      const a=P.terra.size*U*.95, b=a*.32, mx=x+Math.cos(ang)*a, my=y+Math.sin(ang)*b-Math.cos(ang)*a*.18;
-      const behind=Math.sin(ang)<0;
-      if(behind) drawPlanet(P.moon,mx,my);
-      drawPlanet(p,x,y);
-      if(!behind) drawPlanet(P.moon,mx,my);
-    } else drawPlanet(p,x,y);
-  }
+  // altimeter ruler on the left edge
+  {const x=sceneL+14;ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(x,0,2,H);
+   const first=Math.ceil((cam-(H-baseY)/PPP)/10)*10,last=cam+baseY/PPP;
+   ctx.font='8px "Press Start 2P", monospace';ctx.textBaseline='middle';
+   for(let v=Math.max(0,first);v<=last;v+=10){const y=wy2sy(v),big=v%50===0;
+     ctx.fillStyle=big?'rgba(255,255,255,.7)':'rgba(255,255,255,.3)';ctx.fillRect(x,y,big?14:7,2);}
+   for(const z of ZONES){const y=wy2sy(z.at);if(!onScreen(y,10))continue;
+     ctx.fillStyle='rgba(124,247,212,.9)';ctx.fillRect(x-4,y-1,22,4);
+     ctx.fillStyle='rgba(255,255,255,.75)';ctx.fillText(z.name.toUpperCase(),x+26,y+1);}
+   // current marker
+   ctx.fillStyle='#ffcf5a';ctx.fillRect(x-6,baseY-1,26,3);}
 
-  // warp streaks
-  if(warp>.02){
-    const cx=W/2+mouse.sx*-20, cy=H/2+mouse.sy*-20, F=Math.max(W,H)*.5;
-    const sp=dt*(.25+warp*2.6);
-    ctx.lineWidth=Math.max(1,U*.6); ctx.lineCap='square';
-    for(const s of warpStars){
-      const pz=s.z; s.z-=sp;
-      if(s.z<=.02){ Object.assign(s,newWarp()); continue; }
-      const x1=cx+s.x/pz*F*.5, y1=cy+s.y/pz*F*.5, x2=cx+s.x/s.z*F*.5, y2=cy+s.y/s.z*F*.5;
-      const a=clamp((1-s.z)*1.4,0,1)*Math.min(1,warp*1.4);
-      ctx.strokeStyle=`rgba(${200+((s.x*50)|0)},${220},255,${a})`;
-      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-    }
-    // flash vignette
-    const vg=ctx.createRadialGradient(cx,cy,0,cx,cy,Math.max(W,H)*.6);
-    vg.addColorStop(0,`rgba(140,200,255,${warp*.08})`); vg.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
-  }
+  // HUD text
+  updateHud();
 }
-function engageWarp(amount, hold){
-  warpTarget=REDUCED?Math.min(.25,amount):amount; warpHold=hold;
+let lastHud='';
+function updateHud(){
+  const z=zoneAt(cam),s=fmtDist(ptsToKm(cam))+'|'+z.name+'|'+Math.round(cam);
+  if(s===lastHud) return; lastHud=s;
+  const [a,b,c]=s.split('|');
+  $('alt').textContent=a; $('zone').textContent=b.toUpperCase(); $('pts').textContent=c+' PTS';
 }
-
+let onLanded=null;
+function flyTo(target,then){
+  if(target<=cam+.01){ if(then) then(); return; }
+  const now=performance.now()/1000, ign=cam<.1?.9:.45;
+  fly={from:cam,to:target,t0:now+ign,dur:REDUCED?.6:1.3+(target-cam)/100*1.15};
+  onLanded=then||null;
+}
 let last=performance.now();
 function loop(now){
-  const dt=Math.min(.05,(now-last)/1000); last=now;
-  frame(now/1000, dt);
-  tickTimer(now);
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  frame(now/1000,dt);
   requestAnimationFrame(loop);
 }
-addEventListener('pointermove',e=>{mouse.x=(e.clientX/W-.5)*2; mouse.y=(e.clientY/H-.5)*2;},{passive:true});
-addEventListener('resize',resize);
 
 /* =========================================================
-   HUD SHIP + TRACK
-   ========================================================= */
-const SHIP=[
-  "....hh........",
-  "...hdd........",
-  "ffhhhhhhhhh...",
-  "ffdrrrrhhccchh",
-  "ffhhhhhhhhh...",
-  "...hdd........",
-  "....hh........",
-];
-const shipCtx=document.getElementById('shipcv').getContext('2d');
-const SHIPCOL={h:'#e8ecff',d:'#8a93c9',r:'#ff5d7a',c:'#7cf7d4'};
-function drawShip(){
-  shipCtx.clearRect(0,0,14,7);
-  for(let y=0;y<7;y++) for(let x=0;x<14;x++){
-    const ch=SHIP[y][x];
-    if(ch==='.') continue;
-    if(ch==='f'){
-      const r=Math.random(); if(x===0 && r<.35) continue;
-      shipCtx.fillStyle=r<.5?'#ffcf5a':'#ff7a3a';
-    } else shipCtx.fillStyle=SHIPCOL[ch];
-    shipCtx.fillRect(x,y,1,1);
-  }
-}
-drawShip(); setInterval(drawShip,90);
-
-const trackEl=document.getElementById('track'), shipEl=document.getElementById('ship'), fillEl=document.getElementById('fill');
-const ticksEl=document.getElementById('ticks');
-let shipDist=0;
-function buildTicks(){
-  ticksEl.innerHTML='';
-  for(const [d,name] of STARS){
-    if(d===0) continue;
-    if(!['Proxima Centauri','Vega','Polaris','Deneb','the Crab Nebula'].includes(name)) continue;
-    const el=document.createElement('div'); el.className='tick';
-    el.style.left=(trackPos(d)*100)+'%';
-    el.innerHTML=`<em>${name.replace('the ','').toUpperCase()}</em>`;
-    ticksEl.appendChild(el);
-  }
-}
-function placeShip(){
-  const w=trackEl.clientWidth, p=trackPos(shipDist);
-  shipEl.style.transform=`translateX(${p*w}px)`;
-  fillEl.style.transform=`scaleX(${p})`;
-}
-
-/* =========================================================
-   GAME
+   GAME FLOW
    ========================================================= */
 const $=id=>document.getElementById(id);
-const ROUNDS=10, DURATION=30000;
-const G={phase:'title', round:0, qs:[], results:[], total:0, tStart:0, lock:0};
-$('best').textContent=store.get('farout.best',0).toLocaleString();
+const today=new Date();
+const dateKey=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+const dayNum=Math.floor((Date.UTC(today.getFullYear(),today.getMonth(),today.getDate())-Date.UTC(2026,10,1))/864e5)+1;
+function seededPick(seed,n){const r=mulberry32(seed),a=BANK.slice();for(let i=a.length-1;i>0;i--){const j=(r()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a.slice(0,n);}
+const dailyQs=seededPick(today.getFullYear()*10000+(today.getMonth()+1)*100+today.getDate(),ROUNDS);
+const G={mode:'daily',qs:[],results:[],round:0,tries:MAX_TRIES,phase:'intro',lock:0};
+const total=()=>G.results.reduce((s,r)=>s+r.pts,0);
 
-function show(id){
-  for(const s of document.querySelectorAll('.screen')) s.classList.toggle('on', s.id===id);
-  $('app').scrollTo({top:0,behavior:'smooth'});
+function view(id){
+  for(const v of document.querySelectorAll('.pv')) v.classList.toggle('on',v.id===id);
+  $('panel').scrollTo({top:0,behavior:'smooth'});
+  requestAnimationFrame(measure); setTimeout(measure,700);
 }
-function shuffle(a){for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
+function fadeThen(fn){ $('fade').classList.add('on'); setTimeout(()=>{fn(); setTimeout(()=>$('fade').classList.remove('on'),60);},460); }
+function saveDaily(){ if(G.mode==='daily') store.set('farout.daily.'+dateKey,G.results); }
 
-function start(){
-  G.qs=shuffle(BANK.slice()).slice(0,ROUNDS);
-  G.round=0; G.results=[]; G.total=0;
-  shipDist=0; placeShip();
-  engageWarp(.6,.6);
+function legend(){
+  $('legend').innerHTML=TIER_ORDER.slice().reverse().map(k=>{const t=TIERS[k];return `<li><i style="background:${t.col}"></i><b style="color:${t.col}">${t.name}</b><span>${t.pts} PTS</span></li>`}).join('')+
+    `<li><i style="background:${TIERS.miss.col}"></i><b style="color:${TIERS.miss.col}">NO SIGNAL</b><span>0 PTS</span></li>`;
+}
+function initIntro(){
+  const saved=store.get('farout.daily.'+dateKey,[]);
+  $('introKicker').textContent=`Daily flight #${dayNum}`;
+  if(saved.length>=ROUNDS) $('dailyBtn').innerHTML=`SEE TODAY'S FLIGHT <span class="k">↵</span>`;
+  else if(saved.length) $('dailyBtn').innerHTML=`CONTINUE FLIGHT (${saved.length}/${ROUNDS}) <span class="k">↵</span>`;
+}
+function startDaily(){
+  G.mode='daily'; G.qs=dailyQs;
+  const saved=store.get('farout.daily.'+dateKey,[]);
+  G.results=saved.map(r=>({...r,q:BANK.find(b=>b.c===r.c)}));
+  G.round=G.results.length;
+  if(G.round>=ROUNDS){ cam=0; flyTo(total(),null); summary(); return; }
+  if(total()>0) flyTo(total(),null);
   ask();
+}
+function startPractice(){
+  const go=()=>{ G.mode='practice'; G.qs=BANK.slice().sort(()=>Math.random()-.5).slice(0,ROUNDS); G.results=[]; G.round=0; cam=0; particles.length=0; fly=null; ask(); };
+  if(cam>0) fadeThen(go); else go();
+}
+function pips(){
+  $('pips').innerHTML=Array.from({length:ROUNDS},(_,i)=>{
+    const r=G.results[i];
+    return `<i class="${i===G.round&&!r?'cur':''}" style="${r?`background:${TIERS[r.tier].col}`:''}"></i>`;
+  }).join('');
 }
 function ask(){
   const q=G.qs[G.round];
+  G.tries=MAX_TRIES; G.phase='prompt'; G.lock=performance.now()+350;
   $('qn').textContent=G.round+1;
+  $('modeLabel').textContent=G.mode==='daily'?`DAILY #${dayNum}`:'PRACTICE';
   $('prompt').textContent=q.c;
-  $('sofar').textContent=G.total?`${G.total.toLocaleString()} ly travelled`:'';
-  $('answer').value='';
-  G.phase='play'; G.tStart=performance.now(); G.lock=performance.now()+400;
-  show('s-play');
-  setTimeout(()=>$('answer').focus({preventScroll:true}),350);
+  $('answer').value=''; $('msg').classList.remove('on');
+  [...$('dots').children].forEach(d=>d.classList.remove('used'));
+  pips(); view('v-prompt');
+  setTimeout(()=>{ if(G.phase==='prompt') $('answer').focus({preventScroll:true}); },380);
 }
-function tickTimer(now){
-  if(G.phase!=='play') return;
-  const left=Math.max(0,DURATION-(now-G.tStart));
-  $('timerbar').style.transform=`scaleX(${left/DURATION})`;
-  const low=left<8000;
-  $('timer').classList.toggle('low',low); $('clock').classList.toggle('low',low);
-  $('clock').textContent=(left/1000).toFixed(1);
-  if(left<=0) submit(true);
+function miss(text){
+  G.tries--;
+  [...$('dots').children].forEach((d,i)=>d.classList.toggle('used',i>=G.tries));
+  const f=$('form'); f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake');
+  if(G.tries<=0){ resolve(null,text); return; }
+  $('msg').textContent=`“${text}” isn’t on our charts. ${G.tries} ${G.tries===1?'try':'tries'} left.`;
+  $('msg').classList.add('on'); $('answer').select();
 }
-function submit(timeout=false){
-  if(G.phase!=='play') return;
-  G.phase='reveal'; G.lock=performance.now()+500;
-  const q=G.qs[G.round], raw=$('answer').value.trim();
-  const it=raw?match(q,raw):null;
-  let res;
-  if(it){ const s=score(q,it); res={q,raw,it,...s}; }
-  else res={q,raw,it:null,ly:0,p:0,tier:null,timeout:timeout&&!raw};
-  G.results.push(res); G.total+=res.ly;
+function submit(){
+  if(G.phase!=='prompt'||performance.now()<G.lock) return;
+  const raw=$('answer').value.trim(); if(!raw) return;
+  const q=G.qs[G.round], it=match(q,raw);
+  if(!it){ miss(raw); return; }
+  resolve(it,raw);
+}
+function resolve(it,raw){
+  const q=G.qs[G.round];
+  G.phase='result'; G.lock=performance.now()+600;
+  let r;
+  if(it){ const g=grade(q,it); r={c:q.c,q,raw,name:it.name,itemIndex:it.i,...g}; }
+  else r={c:q.c,q,raw:raw||'',name:null,tier:'miss',pts:0,p:0};
+  G.results.push(r); saveDaily();
   $('answer').blur();
-  if(res.ly>0) engageWarp(.35+.65*Math.min(1,res.ly/700), 1.1+res.p*1.2);
-  shipDist=G.total; placeShip();
-  renderReveal(res);
-  show('s-reveal');
+  renderResult(r);
+  view('v-result');
+  if(r.pts>0) flyTo(total(),null);
 }
-function countUp(el, to, dur=1400, delay=200){
+function countUp(el,to,dur=1200,delay=250){
   const t0=performance.now()+delay;
-  function step(now){
-    const t=clamp((now-t0)/dur,0,1);
-    el.textContent=Math.round(to*easeOut(t)).toLocaleString();
-    if(t<1) requestAnimationFrame(step);
-  }
-  el.textContent='0'; requestAnimationFrame(step);
+  (function step(now){const t=clamp((now-t0)/dur,0,1);el.textContent='+'+Math.round(to*easeOut(t));if(t<1)requestAnimationFrame(step);})(t0);
+  el.textContent='+0';
 }
-const esc=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-function renderReveal(r){
-  const q=r.q, items=q.items, last=G.round===ROUNDS-1;
-  const common=items.slice(0,4).filter(x=>x!==r.it).slice(0,3);
-  const deep=items.slice(-5).filter(x=>x!==r.it).slice(-3).reverse();
-  const lyOf=it=>score(q,it).ly;
-  const tierHTML = r.tier
-    ? `<div class="tier rise" style="color:${r.tier.col}">${r.tier.name}</div>`
-    : `<div class="tier rise" style="color:var(--bad)">${r.timeout?'OUT OF TIME':'NO SIGNAL'}</div>`;
-  const yours = r.raw ? `“${esc(r.raw)}”` : '<span style="color:var(--faint)">No answer</span>';
-  const matched = r.it
-    ? (keyOf(r.raw)!==r.it.keys[0] ? `Logged as <b style="color:var(--dim)">${esc(r.it.name)}</b>` : `A ${esc(q.c)}, confirmed.`)
-    : (r.raw ? `That isn’t on our star charts for “${esc(q.c)}”.` : `The engines never fired.`);
-  $('revealBody').innerHTML=`
-    <div class="qtop"><div class="qnum">PROMPT <span>${G.round+1}</span>/${ROUNDS} · ${esc(q.c.toUpperCase())}</div></div>
-    <div style="height:18px"></div>
-    ${tierHTML}
-    <div class="your rise" style="--d:.06s">${yours}</div>
-    <div class="matched rise" style="--d:.1s">${matched}</div>
-    <div class="ly rise" style="--d:.14s"><b id="lyNum" style="color:${r.tier?r.tier.col:'var(--faint)'}">0</b><small>LIGHT YEARS</small></div>
+function renderResult(r){
+  const q=r.q,T=TIERS[r.tier],last=G.round===ROUNDS-1;
+  const it=r.name?q.items[r.itemIndex]:null;
+  const common=q.items.slice(0,4).filter(x=>x!==it).slice(0,3);
+  const deep=q.items.slice(-5).filter(x=>x!==it).slice(-3).reverse();
+  const matchedLine= r.name ? (keyOf(r.raw)!==it.keys[0] ? `Counted as <b style="color:var(--dim)">${esc(r.name)}</b>` : `Confirmed.`)
+                            : (r.raw?`Out of tries.`:`Skipped.`);
+  $('resultBody').innerHTML=`
+    <div class="pips">${Array.from({length:ROUNDS},(_,i)=>{const x=G.results[i];return `<i style="${x?`background:${TIERS[x.tier].col}`:''}"></i>`}).join('')}</div>
+    <div class="qmeta"><span>PROMPT <b>${G.round+1}</b> / 7</span><span>${esc(q.c.toUpperCase().slice(0,22))}${q.c.length>22?'…':''}</span></div>
+    <div class="tier rise" style="color:${T.col}">${T.name}</div>
+    <div class="tierdesc rise" style="--d:.04s">${T.desc}</div>
+    <div class="your rise" style="--d:.08s">${r.raw?`“${esc(r.raw)}”`:'<span style="color:var(--faint)">No answer</span>'}</div>
+    <div class="matched rise" style="--d:.1s">${matchedLine}</div>
+    <div class="gain rise" style="--d:.14s"><b id="gainNum" style="color:${T.col}">+0</b><small>PTS</small></div>
     <div class="rise" style="--d:.2s">
-      <div class="meter ${r.it?'':'none'}"><div class="pin" id="pin"></div></div>
+      <div class="meter ${r.name?'':'none'}"><div class="pin" id="pin"></div></div>
       <div class="mlabels"><span>EVERYONE SAYS IT</span><span>NOBODY SAYS IT</span></div>
     </div>
-    <div class="lists rise" style="--d:.28s">
-      <div><h4>MOST SAID</h4><ul>${common.map(x=>`<li>${esc(x.name)}<span>${lyOf(x)} LY</span></li>`).join('')}</ul></div>
-      <div><h4>DEEPEST CUTS</h4><ul>${deep.map(x=>`<li>${esc(x.name)}<span>${lyOf(x)} LY</span></li>`).join('')}</ul></div>
+    <div class="lists rise" style="--d:.26s">
+      <div><h4>MOST SAID</h4><ul>${common.map(x=>`<li>${esc(x.name)}</li>`).join('')}</ul></div>
+      <div><h4>RAREST</h4><ul>${deep.map(x=>`<li>${esc(x.name)}</li>`).join('')}</ul></div>
     </div>
-    <div class="row rise" style="--d:.34s">
-      <button class="btn" id="nextBtn">${last?'SEE WHERE YOU LANDED':'NEXT PROMPT'} <span class="k">↵</span></button>
-      <span class="hint">Total: ${G.total.toLocaleString()} ly</span>
+    <div class="stack rise" style="--d:.32s;margin-top:0">
+      <button class="btn" id="nextBtn">${last?'MISSION REPORT':'NEXT PROMPT'} <span class="k">↵</span></button>
     </div>`;
-  countUp($('lyNum'), r.ly, 1200+r.p*600, 250);
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{ const pin=$('pin'); if(pin) pin.style.left=(r.it? r.p*100:0)+'%'; }));
+  countUp($('gainNum'),r.pts);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{const p=$('pin');if(p)p.style.left=(r.name?r.p*100:0)+'%';}));
   $('nextBtn').onclick=next;
 }
 function next(){
-  if(G.phase!=='reveal'||performance.now()<G.lock) return;
+  if(G.phase!=='result'||performance.now()<G.lock) return;
   G.round++;
-  if(G.round>=ROUNDS) finish(); else ask();
+  if(G.round>=ROUNDS) summary(); else ask();
 }
-function finish(){
-  G.phase='end'; G.lock=performance.now()+600;
-  const best=store.get('farout.best',0), isBest=G.total>best;
-  if(isBest){ store.set('farout.best',G.total); $('best').textContent=G.total.toLocaleString(); }
-  let reached=STARS[0], nxt=null;
-  for(const s of STARS){ if(s[0]<=G.total) reached=s; else { nxt=s; break; } }
-  const dest = reached[0]===0
-    ? `Your ship never left <strong>Earth</strong>.`
-    : `You flew past <strong>${reached[1]}</strong> (${reached[0].toLocaleString()} ly).`;
-  const nextLine = nxt ? ` Next stop: <strong>${nxt[1]}</strong> at ${nxt[0].toLocaleString()} ly.` : ` There's nothing left on the map.`;
-  $('endBody').innerHTML=`
-    <div class="kicker">Voyage complete</div>
-    <div class="total"><span id="totNum">0</span> LY</div>
-    <p class="dest">${dest}${nextLine}</p>
-    ${isBest?'<div class="newbest rise" style="--d:.9s">NEW BEST</div>':''}
-    <div class="row" style="margin-top:22px">
-      <button class="btn" id="againBtn">FLY AGAIN <span class="k">↵</span></button>
-      <span class="hint">New prompts every voyage.</span>
+function shareText(){
+  const pts=total(),z=zoneAt(pts);
+  return `FAR OUT ${G.mode==='daily'?'#'+dayNum:'(practice)'} 🚀\n${G.results.map(r=>TIERS[r.tier].emoji).join('')}\n${pts} pts · reached ${z.name}`;
+}
+let countdownTimer=null;
+function summary(){
+  G.phase='summary'; G.lock=performance.now()+600;
+  const pts=total(),z=zoneAt(pts),km=ptsToKm(pts);
+  const nz=ZONES.find(s=>s.at>pts);
+  if(G.mode==='practice'){ const b=store.get('farout.best',0); if(pts>b) store.set('farout.best',pts); }
+  $('summaryBody').innerHTML=`
+    <div class="kicker">${G.mode==='daily'?`Daily flight #${dayNum} · complete`:'Practice run · complete'}</div>
+    <div class="total"><span id="totNum">0</span> PTS</div>
+    <p class="reached">You reached <strong>${esc(z.name)}</strong>, ${fmtDist(km)} up.${nz?` Next stop: <strong>${esc(nz.name)}</strong> at ${nz.at} pts.`:' There’s nowhere higher to go.'}</p>
+    <div class="grid">${G.results.map((r,i)=>`<i class="rise" title="${esc(TIERS[r.tier].name)}" style="--d:${.2+i*.08}s;background:${TIERS[r.tier].col}"></i>`).join('')}</div>
+    <ul class="recap">${G.results.map((r,i)=>`
+      <li class="rise" style="--d:${.3+i*.05}s"><div><span class="c">${esc(r.c)}</span>${r.raw?esc(r.name||r.raw):'<span style="color:var(--faint)">Skipped</span>'}</div>
+      <span class="n" style="color:${TIERS[r.tier].col}">${TIERS[r.tier].name}<br>${r.pts} PTS</span></li>`).join('')}</ul>
+    <div class="stack">
+      <button class="btn" id="shareBtn">COPY RESULTS</button>
+      <button class="btn ghost" id="againBtn">${G.mode==='daily'?'PRACTICE RUN':'NEW PRACTICE RUN'}</button>
     </div>
-    <ul class="recap" style="margin-bottom:0">${G.results.map((r,i)=>`
-      <li class="rise" style="--d:${.15+i*.06}s">
-        <div><span class="c">${esc(r.q.c)}</span>${r.raw?esc(r.it?r.it.name:r.raw):'<span style="color:var(--faint)">No answer</span>'}</div>
-        <span class="t" style="color:${r.tier?r.tier.col:'var(--bad)'}">${r.tier?r.tier.name:'NO SIGNAL'}</span>
-        <span class="n" style="color:${r.tier?r.tier.col:'var(--faint)'}">${r.ly.toLocaleString()}</span>
-      </li>`).join('')}</ul>
-    `;
-  countUp($('totNum'), G.total, 2000, 300);
-  engageWarp(.9, 1.6);
-  $('againBtn').onclick=()=>{ if(performance.now()>=G.lock) start(); };
-  show('s-end');
+    ${G.mode==='daily'?`<p class="next">Next daily flight in <b id="cd">--:--:--</b></p>`:''}`;
+  const el=$('totNum'),t0=performance.now()+200;
+  (function step(now){const t=clamp((now-t0)/1600,0,1);el.textContent=Math.round(pts*easeOut(t));if(t<1)requestAnimationFrame(step);})(t0);
+  $('shareBtn').onclick=async()=>{
+    const txt=shareText(); let ok=false;
+    try{await navigator.clipboard.writeText(txt);ok=true;}catch(e){}
+    toast(ok?'COPIED TO CLIPBOARD':'COPY FAILED');
+  };
+  $('againBtn').onclick=startPractice;
+  clearInterval(countdownTimer);
+  if(G.mode==='daily'){
+    const tick=()=>{const n=new Date(),m=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1),s=Math.max(0,(m-n)/1000|0);
+      const c=$('cd');if(c)c.textContent=[s/3600|0,(s%3600)/60|0,s%60].map(v=>String(v).padStart(2,'0')).join(':');};
+    tick(); countdownTimer=setInterval(tick,1000);
+  }
+  view('v-summary');
 }
+function toast(t){const el=$('toast');el.textContent=t;el.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>el.classList.remove('on'),1800);}
 
-$('startBtn').onclick=start;
-$('form').addEventListener('submit',e=>{e.preventDefault(); if($('answer').value.trim()) submit();});
+$('dailyBtn').onclick=startDaily;
+$('practiceBtn').onclick=startPractice;
+$('skipBtn').onclick=()=>{ if(G.phase==='prompt') resolve(null,''); };
+$('form').addEventListener('submit',e=>{e.preventDefault();submit();});
 addEventListener('keydown',e=>{
-  if(e.key!=='Enter' || e.repeat) return;
-  if(G.phase==='title'){ e.preventDefault(); start(); }
-  else if(G.phase==='reveal' && e.target.id!=='answer'){ e.preventDefault(); next(); }
-  else if(G.phase==='end' && performance.now()>=G.lock){ e.preventDefault(); start(); }
+  if(e.key!=='Enter'||e.repeat) return;
+  if(G.phase==='intro'){e.preventDefault();startDaily();}
+  else if(G.phase==='result'&&e.target.id!=='answer'){e.preventDefault();next();}
 });
+addEventListener('resize',resize);
+new ResizeObserver(measure).observe($('panel'));
 
-resize(); buildTicks(); placeShip();
-requestAnimationFrame(t=>{last=t; requestAnimationFrame(loop);});
+legend(); initIntro(); buildWorld(); buildNebula(); resize();
+requestAnimationFrame(t=>{last=t;requestAnimationFrame(loop);});
 </script>
 </body>
 </html>
