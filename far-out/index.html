@@ -338,7 +338,7 @@ const zoneAt=p=>{let z=ZONES[0];for(const s of ZONES) if(s.at<=p+.01) z=s; retur
    frame into a small canvas, so it really rotates. Alpha in the texture
    marks emissive pixels: 1 always glows, 2 city lights (night side only).
    ========================================================= */
-const TW=192,TH=96;
+const TW=256,TH=128;
 const PAL={
   jupiter:[[238,218,176],[214,162,104],[176,110,70],[242,232,206],[150,88,58],[222,188,132],[196,140,90]],
   saturn:[[242,228,184],[228,208,152],[208,182,122],[248,240,208],[192,162,106],[234,218,172]],
@@ -471,33 +471,40 @@ function sprite(rows,cols){
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){const ch=rows[y][x];if(ch==='.'||!cols[ch])continue;g.fillStyle=typeof cols[ch]==='function'?cols[ch](x,y):cols[ch];g.fillRect(x,y,1,1);}
   return c;
 }
-const ROCKET=sprite([
-  ".....rr.....",
-  "....rrrr....",
-  "...rrrrrr...",
-  "...wwwwww...",
-  "..wwwwwwww..",
-  "..wwwkkwww..",
-  "..wwkcckww..",
-  "..wwkcckww..",
-  "..wwwkkwww..",
-  "..wwwwwwww..",
-  "..wwwwwwww..",
-  "..gggggggg..",
-  "..wwwwwwww..",
-  "..wwwwwwww..",
-  "..wwwwwwww..",
-  "..wwwwwwww..",
-  ".rwwwwwwwwr.",
-  "rrwwwwwwwwrr",
-  "rr.nnnnnn.rr",
-  "r...nnnn...r",
-],{
-  r:(x)=>x<6?'#ff6b7f':'#d8435c',
-  w:(x)=>x<5?'#f4f6ff':x<8?'#d9ddf2':'#a6addb',
-  k:'#5a6390', c:(x,y)=>y===6&&x===5?'#e6fff9':'#7cf7d4', g:'#ffcf5a',
-  n:(x)=>x<6?'#6b7299':'#474d70',
-});
+/* Saturn V, the Apollo 11 launch vehicle, as stacked pixel segments.
+   Top to bottom: escape tower + command/service module (csm), S-IVB third stage,
+   S-II second stage, S-IC first stage with its five engines. */
+const SATURN=(()=>{
+  const Wd=13,C=6,segs={csm:[],sivb:[],s2:[],s1:[]};
+  const add=(seg,w,fn)=>{const h=(w-1)/2;let r='';for(let x=0;x<Wd;x++){const lx=x-(C-h);r+=(lx<0||lx>=w)?'.':fn(lx,w);}segs[seg].push(r);};
+  const body=(lx,w)=>lx===0?'H':lx>=w-2?'w':'W';
+  // launch escape tower
+  add('csm',1,()=>'r'); add('csm',1,()=>'k'); add('csm',1,()=>'k');
+  add('csm',3,lx=>lx===1?'.':'k'); add('csm',3,lx=>lx===1?'.':'k'); add('csm',3,()=>'k');
+  // command module cone + service module
+  add('csm',1,()=>'H'); add('csm',3,body); add('csm',5,body);
+  add('csm',5,(lx,w)=>lx===1?'s':body(lx,w)); add('csm',5,body); add('csm',5,(lx,w)=>lx===3?'s':body(lx,w));
+  // lunar module adapter (tapers out)
+  add('csm',5,body); add('csm',7,body); add('csm',7,body); add('csm',7,body);
+  // S-IVB third stage: white with a black aft band
+  for(let i=0;i<10;i++) add('sivb',7,(lx,w)=> i>=7&&(lx<2||lx>4)?'K':i===9?'K':body(lx,w));
+  // S-II second stage
+  add('s2',7,()=>'K');
+  for(let i=0;i<14;i++) add('s2',7,(lx,w)=> i===3&&lx>=2&&lx<=4?(lx===3?'b':'r'):body(lx,w));
+  add('s2',7,()=>'K'); add('s2',7,body);
+  // S-IC first stage: checkered roll band, black stripes, fins, five F-1 engines
+  for(let i=0;i<3;i++) add('s1',7,lx=>(lx+i)%2?'K':'W');
+  for(let i=0;i<17;i++) add('s1',7,(lx,w)=> i>7&&(lx===1||lx===5)?'K':body(lx,w));
+  add('s1',9,(lx,w)=>lx===0||lx===8?'K':body(lx-1,7));
+  add('s1',11,(lx,w)=>lx<2||lx>8?'K':body(lx-2,7));
+  add('s1',11,lx=>lx===0||lx===10?'K':'k');
+  add('s1',9,lx=>lx%2===0?'b':'.'); add('s1',11,lx=>lx%2===1?'b':'.');
+  const cols={W:'#f4f6ff',H:'#ffffff',w:'#b4bad8',K:'#1d2030',k:'#5a6390',r:'#ff5d6b',b:'#3a4a9a',s:'#c9cfe6'};
+  const out={};for(const k in segs) out[k]=sprite(segs[k],cols);
+  return out;
+})();
+const STACK=['csm','sivb','s2','s1'];
+const NOZZLE={s1:4.5,s2:3,sivb:1.5};     // half-width of the exhaust, in art pixels
 const SAT=sprite([
   "bbbb.....bbbb",
   "BBBB..a..BBBB",
@@ -548,7 +555,8 @@ const BALLOON=sprite([
 const cv=document.getElementById('scene'),ctx=cv.getContext('2d');
 let W=0,H=0,DPR=1,U=3,RU=4,PPP=30;           // U: art pixel size, RU: rocket pixel size, PPP: screen px per point
 let sceneCX=0,sceneL=0,sceneR=0,baseY=0,tCX=0,tBaseY=0;
-let cam=0,vel=0,thrust=0,thrustTarget=0,fly=null,shake=0;
+let cam=0,vel=0,tgt=0,tgtS=0,pending=null,igniteUntil=0,thrust=0,shake=0,bobAmp=0;
+let stage=0,slide=0,slideV=0,debris=[],lineAlpha=0;
 let stars=[],particles=[],speedLines=[],clouds=[],birds=[],asteroids=[];
 let layers={},nebula=null,galaxy=null;
 
@@ -668,7 +676,7 @@ function resize(){
 }
 const wy2sy=wy=>baseY-(wy-cam)*PPP;
 function onScreen(sy,half){return sy+half>-20&&sy-half<H+20;}
-function draw(img,x,y,s){ctx.drawImage(img,Math.round(x),Math.round(y),img.width*s,img.height*s);}
+function draw(img,x,y,s){ctx.drawImage(img,x,y,img.width*s,img.height*s);}
 function drawCentered(img,x,y,s){draw(img,x-img.width*s/2,y-img.height*s/2,s);}
 
 const SKY=[[0,[132,200,255]],[30,[96,166,246]],[70,[62,112,214]],[110,[38,52,150]],[140,[22,22,84]],[165,[9,8,34]],[200,[5,4,13]]];
@@ -679,14 +687,14 @@ function skyAt(a){
 }
 
 function emit(dt){
-  const nozX=sceneCX, nozY=cam - 0;           // world y of rocket base = cam
-  const rate=thrust*(fly?90:26)*dt;
+  const nozX=sceneCX, nozY=cam-slide/PPP, hw=NOZZLE[STACK[3-stage]]*RU;
+  const rate=thrust*(thrust>.5?90:26)*dt;
   let n=Math.floor(rate)+(Math.random()<rate%1?1:0);
   const inAir=cam<150;
   while(n--){
     const smoke=inAir&&Math.random()<.7;
-    particles.push({x:nozX+(Math.random()-.5)*RU*4,wy:nozY-(RU*2+Math.random()*RU*6)/PPP,
-      vx:(Math.random()-.5)*(smoke?40:60),vy:-(smoke?1.5:3)-Math.random()*2,life:0,max:smoke?1.6+Math.random()*1.4:.45+Math.random()*.3,smoke,s:smoke?RU*(1+Math.random()):RU*.75});
+    particles.push({x:nozX+(Math.random()-.5)*hw*2,wy:nozY-(RU*2+Math.random()*RU*6)/PPP,
+      vx:(Math.random()-.5)*(smoke?40:60)*(cam<4&&smoke?6:1),vy:(cam<4&&smoke?-.4:-(smoke?1.5:3))-Math.random()*2,life:0,max:smoke?1.6+Math.random()*1.4:.45+Math.random()*.3,smoke,s:smoke?RU*(1+Math.random()):RU*.75});
   }
 }
 function frame(t,dt){
@@ -694,16 +702,24 @@ function frame(t,dt){
   const k=1-Math.exp(-dt*6); sceneCX+=(tCX-sceneCX)*k; baseY+=(tBaseY-baseY)*k;
 
   // flight
-  const prev=cam;
-  if(fly){
-    if(t<fly.t0){ thrustTarget=1; shake=Math.min(1,shake+dt*2); }
-    else{
-      const p=clamp((t-fly.t0)/fly.dur,0,1); cam=lerp(fly.from,fly.to,easeInOut(p)); thrustTarget=1-p*.5; shake=Math.max(0,shake-dt*1.5);
-      if(p>=1){fly=null; if(fly===null&&onLanded) {const f=onLanded;onLanded=null;f();}}
-    }
-  } else { thrustTarget=cam>.1?.3:0; shake=Math.max(0,shake-dt*2); }
-  vel=(cam-prev)/Math.max(dt,1e-3);
-  thrust+=(thrustTarget-thrust)*(1-Math.exp(-dt*5));
+  if(pending!==null&&t>=igniteUntil){tgt=pending;pending=null;}
+  const igniting=pending!==null;
+  // the target itself eases toward the goal, and the camera springs after it:
+  // position, velocity and acceleration all stay continuous, so no move ever jerks
+  tgtS+=(tgt-tgtS)*(1-Math.exp(-dt*(REDUCED?8:2.4)));
+  const w=REDUCED?8:3.1, acc=w*w*(tgtS-cam)-2*w*vel;
+  vel+=acc*dt; cam+=vel*dt;
+  if(Math.abs(tgt-cam)<.0005&&Math.abs(vel)<.001){cam=tgt;vel=0;}
+  const climbing=igniting||vel>.4||tgt-cam>.3;
+  const thrustTarget=igniting?1:climbing?clamp(.5+vel/140,.5,1):(cam>.1?.28:0);
+  thrust+=(thrustTarget-thrust)*(1-Math.exp(-dt*4));
+  shake+=((igniting?1:climbing?clamp(vel/220,0,.45):0)-shake)*(1-Math.exp(-dt*4));
+  bobAmp+=((!climbing&&cam>.1?1:0)-bobAmp)*(1-Math.exp(-dt*1.5));
+  // staging: spent stages separate and tumble away; the stack eases down to take their place
+  const want=cam>=215?2:cam>=120?1:0;
+  if(want>stage){ for(let k=stage;k<want;k++) jettison(k); stage=want; }
+  else if(want<stage){ stage=want; slide=0; slideV=0; }
+  const sAcc=-(2.6*2.6)*slide-2*2.6*slideV; slideV+=sAcc*dt; slide+=slideV*dt;
 
   // sky: banded vertical gradient by world altitude
   const band=U*3;
@@ -789,13 +805,17 @@ function frame(t,dt){
     draw(layers.ground,-U*2,gy,U);
     // launch pad + tower
     const px=sceneCX;
-    ctx.fillStyle='#6b7299';ctx.fillRect(px-RU*9,gy-RU,RU*18,RU);
-    ctx.fillStyle='#8a93c9';ctx.fillRect(px-RU*9,gy-RU,RU*18,RU*.5);
-    const tx=px-RU*12, th=RU*30;
-    ctx.fillStyle='#c94a5a';ctx.fillRect(tx,gy-th,RU*2,th);ctx.fillRect(tx+RU*3,gy-th,RU*1,th);
-    for(let y=gy-th;y<gy;y+=RU*3){ctx.fillRect(tx,y,RU*4,RU*.5);}
-    ctx.fillStyle='#ffcf5a';ctx.fillRect(tx,gy-th-RU,RU*1,RU);
-    if(cam<1.5){ctx.fillStyle='#9aa3c7';ctx.fillRect(tx+RU*4,gy-RU*14,RU*4*(1-smooth(0,1,cam)),RU);}
+    ctx.fillStyle='#6b7299';ctx.fillRect(px-RU*12,gy-RU*2,RU*24,RU*2);
+    ctx.fillStyle='#8a93c9';ctx.fillRect(px-RU*12,gy-RU*2,RU*24,RU*.6);
+    ctx.fillStyle='#4a5070';ctx.fillRect(px-RU*4,gy-RU*2,RU*8,RU*2);
+    const tx=px-RU*13, th=RU*(STACK_H+4);
+    ctx.fillStyle='#c94a5a';ctx.fillRect(tx,gy-th,RU*1.5,th);ctx.fillRect(tx+RU*4,gy-th,RU*1.5,th);
+    for(let y=gy-th;y<gy;y+=RU*3){ctx.fillRect(tx,y,RU*5.5,RU*.6);}
+    ctx.fillStyle='#ffcf5a';ctx.fillRect(tx+RU*2,gy-th-RU*3,RU*1,RU*3);
+    // swing arms pull back smoothly as the rocket lifts
+    const arm=1-smooth(0,2.5,cam)-smooth(0,1,thrust)*.15;
+    ctx.fillStyle='#9aa3c7';
+    for(const h of [14,30,44,58]) ctx.fillRect(tx+RU*5.5,gy-RU*h,Math.max(0,RU*(6.5*arm)),RU);
   }
 
   // Kármán line
@@ -814,29 +834,40 @@ function frame(t,dt){
 
   // speed lines while climbing
   const spd=clamp(vel/120,0,1);
-  if(spd>.02&&!REDUCED){
-    if(speedLines.length<60) speedLines.push({x:sceneL+Math.random()*(sceneR-sceneL),y:-50,l:20+Math.random()*90,v:.8+Math.random()*.8});
-    ctx.fillStyle=cam>150?'rgba(200,220,255,1)':'rgba(255,255,255,1)';
-    for(const s of speedLines){s.y+=s.v*vel*PPP*dt*.9;ctx.globalAlpha=spd*.45;ctx.fillRect(s.x,s.y,Math.max(1,U*.5),s.l*spd);}
+  lineAlpha+=(spd-lineAlpha)*(1-Math.exp(-dt*3));
+  if(!REDUCED&&(lineAlpha>.01||speedLines.length)){
+    if(spd>.05&&speedLines.length<60) speedLines.push({x:sceneL+Math.random()*(sceneR-sceneL),y:-120,l:20+Math.random()*90,v:.8+Math.random()*.8});
+    ctx.fillStyle=cam>150?'#c8dcff':'#ffffff';
+    for(const s of speedLines){s.y+=s.v*Math.max(vel,8)*PPP*dt*.9;ctx.globalAlpha=lineAlpha*.45;ctx.fillRect(s.x,s.y,Math.max(1,U*.5),s.l*(.3+lineAlpha*.7));}
     speedLines=speedLines.filter(s=>s.y<H);
     ctx.globalAlpha=1;
-  } else speedLines.length=0;
+  }
+
+  // spent stages tumbling away
+  for(let i=debris.length-1;i>=0;i--){
+    const d=debris[i]; d.life+=dt; d.rv+=3.2*dt; d.off+=d.rv*dt; d.rot+=d.vr*smooth(0,1.2,d.life)*dt; d.x+=d.vx*smooth(0,1,d.life)*dt;
+    const sy=wy2sy(cam-d.off); if(sy>H+300||d.life>9){debris.splice(i,1);continue;}
+    ctx.save(); ctx.globalAlpha=1-smooth(5,9,d.life); ctx.translate(d.x,sy); ctx.rotate(d.rot);
+    draw(d.img,-d.img.width*RU/2,-d.img.height*RU/2,RU); ctx.restore();
+  }
 
   // rocket
-  const sx=Math.round(sceneCX+(Math.random()-.5)*shake*RU*.8), bob=cam>.1&&!fly?Math.sin(t*1.6)*RU*.6:0;
-  const by=Math.round(baseY-RU*0+bob);
-  // flame
-  if(thrust>.04){
-    const L=Math.round((4+thrust*14+Math.sin(t*40)*1.2)), fp=Math.max(1,RU/2|0);
-    for(let r=0;r<L*2;r++){
-      const f=r/(L*2), w=Math.max(1,Math.round((1-f)*7+Math.random()*1.5));
-      ctx.fillStyle=f<.2?'#fffbe0':f<.45?'#ffd25a':f<.75?'#ff8a3a':'#ff4d5d';
-      ctx.globalAlpha=1-f*.6;
-      ctx.fillRect(sx-w*fp,by+RU*0+r*fp,w*fp*2,fp);
+  const sx=sceneCX+(Math.sin(t*47)+Math.sin(t*31.3)*.6)*shake*RU*.35;
+  const by=baseY+Math.sin(t*1.4)*RU*.7*bobAmp-slide;    // nozzle line
+  const live=STACK.slice(0,4-stage), bottom=live[live.length-1];
+  // flame: smooth noise, not per-frame randomness, so it breathes rather than flickers
+  if(thrust>.02){
+    const hw=NOZZLE[bottom], fp=Math.max(1,RU/2), rows=Math.round((5+thrust*20+Math.sin(t*9)*1.5+Math.sin(t*23)*.8));
+    for(let r=0;r<rows;r++){
+      const f=r/rows, wob=Math.sin(t*14+r*.55)*.5+Math.sin(t*29-r*.9)*.35;
+      const w=Math.max(.5,(hw*2.2)*(1-f*f*.85)*(.75+thrust*.25)+wob);
+      ctx.fillStyle=f<.18?'#fffbe0':f<.42?'#ffd25a':f<.72?'#ff8a3a':'#ff4d5d';
+      ctx.globalAlpha=(1-f*.75)*clamp(thrust*2,0,1);
+      ctx.fillRect(sx-w*fp,by+r*fp*1.4,w*fp*2,fp*1.4+.5);
     }
     ctx.globalAlpha=1;
   }
-  draw(ROCKET,sx-ROCKET.width*RU/2,by-ROCKET.height*RU+RU*2,RU);
+  let y=by; for(let i=live.length-1;i>=0;i--){ const img=SATURN[live[i]]; y-=img.height*RU; draw(img,sx-img.width*RU/2,y,RU); }
 
   // altimeter ruler on the left edge
   {const x=sceneL+14;ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(x,0,2,H);
@@ -860,12 +891,22 @@ function updateHud(){
   const [a,b,c]=s.split('|');
   $('alt').textContent=a; $('zone').textContent=b.toUpperCase(); $('pts').textContent=c+' PTS';
 }
-let onLanded=null;
-function flyTo(target,then){
-  if(target<=cam+.01){ if(then) then(); return; }
-  const now=performance.now()/1000, ign=cam<.1?.9:.45;
-  fly={from:cam,to:target,t0:now+ign,dur:REDUCED?.6:1.3+(target-cam)/100*1.15};
-  onLanded=then||null;
+const STACK_H=STACK.reduce((s,k)=>s+SATURN[k].height,0);
+function flyTo(target){
+  if(target<=tgt+.01) return;
+  const now=performance.now()/1000;
+  pending=target; igniteUntil=now+(cam<.1&&tgt<.1?1.2:.4);
+}
+function resetFlight(){ cam=vel=tgt=tgtS=0; pending=null; stage=0; slide=slideV=0; debris.length=0; particles.length=0; }
+function jettison(k){
+  // k: 0 drops the S-IC, 1 drops the S-II
+  const name=k===0?'s1':'s2', img=SATURN[name];
+  const live=STACK.slice(0,4-k), nozzleY=baseY-slide;   // segment being dropped is the bottom of the current stack
+  const cy=nozzleY-img.height*RU/2;
+  debris.push({img,x:sceneCX,off:-(baseY-cy)/PPP,rv:0,vx:(k?-1:1)*RU*2,rot:0,vr:(k?-1:1)*(.18+Math.random()*.12),life:0});
+  slide+=img.height*RU;       // the remaining stack starts where it was, then eases down
+  slideV=0;
+  for(let i=0;i<26;i++) particles.push({x:sceneCX+(Math.random()-.5)*RU*8,wy:cam+(baseY-nozzleY+img.height*RU)/PPP,vx:(Math.random()-.5)*160,vy:(Math.random()-.5)*6,life:0,max:.5+Math.random()*.5,smoke:false,s:RU*.8});
 }
 let last=performance.now();
 function loop(now){
@@ -909,12 +950,12 @@ function startDaily(){
   const saved=store.get('farout.daily.'+dateKey,[]);
   G.results=saved.map(r=>({...r,q:BANK.find(b=>b.c===r.c)}));
   G.round=G.results.length;
-  if(G.round>=ROUNDS){ cam=0; flyTo(total(),null); summary(); return; }
-  if(total()>0) flyTo(total(),null);
+  if(G.round>=ROUNDS){ flyTo(total()); summary(); return; }
+  if(total()>0) flyTo(total());
   ask();
 }
 function startPractice(){
-  const go=()=>{ G.mode='practice'; G.qs=BANK.slice().sort(()=>Math.random()-.5).slice(0,ROUNDS); G.results=[]; G.round=0; cam=0; particles.length=0; fly=null; ask(); };
+  const go=()=>{ G.mode='practice'; G.qs=BANK.slice().sort(()=>Math.random()-.5).slice(0,ROUNDS); G.results=[]; G.round=0; resetFlight(); ask(); };
   if(cam>0) fadeThen(go); else go();
 }
 function pips(){
@@ -959,7 +1000,7 @@ function resolve(it,raw){
   $('answer').blur();
   renderResult(r);
   view('v-result');
-  if(r.pts>0) flyTo(total(),null);
+  if(r.pts>0) flyTo(total());
 }
 function countUp(el,to,dur=1200,delay=250){
   const t0=performance.now()+delay;
